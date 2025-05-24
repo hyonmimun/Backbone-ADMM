@@ -4,7 +4,7 @@ General:
 
 ADMM:
  rho_EOM: 1 # rho ADMM penalty term, EOM 
- max_iter: 1000 # maximum number of iterations
+ max_iter: 10 # maximum number of iterations
  epsilon: 0.1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
  CircularBufferSize: 10 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
 
@@ -17,19 +17,43 @@ Consumers: # Set of representative consumers
    PV_cap: 0.003 # MWp 
    D: "CONS_LOW" # Demand timeseries that needs to be picked up
    PV_AF: "SOLAR_SOUTH" # AF solar timeseries that needs to be picked up
+   WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
+   Battery:
+    cap_smax: 10
+    EC: 0.95
+    ED: 0.96
+    Decay: 0.9999
+    winj: 0.1
+    wwith: 0.1
 
   TypeB: 
    Share: 0.5  # Share of consumers in overall consumer mix
    PV_cap: 0.005 # MWp 
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
+   WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
+   Battery:
+    cap_smax: 10
+    EC: 0.95
+    ED: 0.96
+    Decay: 0.9999
+    winj: 0.1
+    wwith: 0.1
 
   TypeC: 
    Share: 0.25  # Share of consumers in overall consumer mix
    PV_cap: 0.01 # MWp 
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
-
+   WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
+   Battery:
+    cap_smax: 10
+    EC: 0.95
+    ED: 0.96
+    Decay: 0.9999
+    winj: 0.1
+    wwith: 0.1
+    
 Generators: 
   # OPEX are parametrized as a/2 x g^2 + b x g 
   Baseload:

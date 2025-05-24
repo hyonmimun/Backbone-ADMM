@@ -9,16 +9,21 @@ HPC = "NA" # NA (not applicable) or DelftBlue
 # Home directory
 const home_dir = @__DIR__
 
-if HPC == "DelftBlue"  # only for running this on DelftBlue
-    ENV["GRB_LICENSE_FILE"] = "./Hpc/gurobi.lic"
-    ENV["GUROBI_HOME"] = "./scratch/kbruninx/gurobi950/linux64"
-    println(string("Number of threads: ", Threads.nthreads()))
-end
+#if HPC == "DelftBlue"  # only for running this on DelftBlue
+#    ENV["GRB_LICENSE_FILE"] = "./Hpc/gurobi.lic"
+#    ENV["GUROBI_HOME"] = "./scratch/kbruninx/gurobi950/linux64"
+#    println(string("Number of threads: ", Threads.nthreads()))
+#end
 
-if HPC == "ThinKing"  # only for running this on VSC
+#if HPC == "ThinKing"  # only for running this on VSC
     # ENV["GRB_LICENSE_FILE"] = " "
     # ENV["GUROBI_HOME"] = " "
-end
+#end
+
+import Pkg
+Pkg.add("YAML")
+Pkg.add("ProgressBars")
+Pkg.add("ArgParse")
 
 # Include packages 
 using JuMP, Gurobi # Optimization packages
