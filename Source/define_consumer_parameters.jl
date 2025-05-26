@@ -6,12 +6,15 @@ function define_consumer_parameters!(mod::Model, data::Dict,ts::DataFrame)
     base_demand = data["totConsumers"] * data["Share"] * ts[!, data["D"]]  # Base demand profile
     mod.ext[:timeseries][:D] = base_demand  # Store the total demand profile
     
+    # price elasticity parameters
     mod.ext[:parameters][:D_fixed] = 0.8 * base_demand # Fixed demand (80%)
     mod.ext[:parameters][:D_ELA_max] = 0.2 * base_demand # Elastic demand (20%)
-    
-    # Add elasticity parameter
     mod.ext[:parameters][:WTP] = data["WTP"]  # Willingness to pay
 
+    # CfD parameters
+    mod.ext[:parameters][:cfd_share] = data["cfd_share"]  # 60% of total demand hedged
+    mod.ext[:parameters][:cfd_strike_price] = data["cfd_strike_price"]  # €/MWh (strike price)
+    
     # Battery parameters
     mod.ext[:parameters][:cap_smax] = data["Battery"]["cap_smax"]  # Battery capacity
     mod.ext[:parameters][:EC] = data["Battery"]["EC"]  # Charging efficiency

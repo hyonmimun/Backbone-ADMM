@@ -30,11 +30,11 @@ function solve_consumer_agent!(mod::Model)
    )
    # Demand constraint with price elasticity 
     for jh in JH 
-        delete(mod, mod.ext[:constraints][:demand_balance][jh]) #remove previous constraint that is dependent on the price
+        delete(mod, mod.ext[:constraints][:energy_balance][jh]) #remove previous constraint that is dependent on the price
     end
 
-    mod.ext[:constraints][:demand_balance] = @constraint(mod, [jh in JH],
-    g[jh] <= -(D_fixed[jh]+D_ELA[jh] - PV[jh])- charge[jh] + discharge[jh]
+    mod.ext[:constraints][:energy_balance] = @constraint(mod, [jh in JH],
+    g[jh] == -(D_fixed[jh]+D_ELA[jh] - PV[jh])- charge[jh] + discharge[jh]
     )
     mod.ext[:constraints][:elastic_demand] = @constraint(mod, [jh in JH],
     D_ELA[jh] <= D_ELA_max[jh]
@@ -48,6 +48,16 @@ function solve_consumer_agent!(mod::Model)
   #  )
     # @constraint(mod, [jh in JH], charge[jh] <= PV[jh]) # Battery can only charge from PV production or the grid
     optimize!(mod);
+   
+    consumer_models = Dict(
+      name => mod for (name, mod) in mdict if startswith(name, "Type")
+  )
+  for (name, mod) in consumer_models
+    JH = mod.ext[:sets][:JH]
+    cfd_saving = mod.ext[:expressions][:cfd_saving]
+    total_saving = sum(value(cfd_saving[jh]) for jh in JH)
 
+    println("💰 Total CfD saving for $name = €", round(total_saving, digits=2))
+  end
     return mod
 end

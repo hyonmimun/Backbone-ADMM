@@ -18,6 +18,8 @@ Consumers: # Set of representative consumers
    D: "CONS_LOW" # Demand timeseries that needs to be picked up
    PV_AF: "SOLAR_SOUTH" # AF solar timeseries that needs to be picked up
    WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
+   cfd_share: 0.5 # Share of demand that is hedged by CfD
+   cfd_strike_price: 64 # €/MWh, strike price of CfD
    Battery:
     cap_smax: 10
     EC: 0.95
@@ -32,6 +34,8 @@ Consumers: # Set of representative consumers
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
    WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
+   cfd_share: 0 # Share of demand that is hedged by CfD
+   cfd_strike_price: 0 # €/MWh, strike price of CfD
    Battery:
     cap_smax: 10
     EC: 0.95
@@ -46,6 +50,8 @@ Consumers: # Set of representative consumers
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
    WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
+   cfd_share: 0 # Share of demand that is hedged by CfD
+   cfd_strike_price: 0 # €/MWh, strike price of CfD
    Battery:
     cap_smax: 10
     EC: 0.95
@@ -53,27 +59,38 @@ Consumers: # Set of representative consumers
     Decay: 0.9999
     winj: 0.1
     wwith: 0.1
-    
+
 Generators: 
   # OPEX are parametrized as a/2 x g^2 + b x g 
   Baseload:
     a: 0.008 # (€/MWh)^2
     b: 0 # €/MWh
     C: 5000 # MW
+    CfD:
+      CfD_strike: 64 # €/MWh, strike price of CfD 
+      CfD_capacity: 0.6
 
   MidMerit:
     a: 0.032 # (€/MWh)^2
     b: 40 # €/MWh
     C: 5000 # MW
+    CfD:
+      CfD_strike: 64 # €/MWh, strike price of CfD 
+      CfD_capacity: 0.6
 
   Peak:
     a: 0.08 # (€/MWh)^2
     b: 200 # €/MWh
     C: 5000 # MW
-
+    CfD:
+      CfD_strike: 64 # €/MWh, strike price of CfD 
+      CfD_capacity: 0.6
+  
   WindOnshore:
     a: 0 # (€/MWh)^2
     b: 0 # €/MWh
     C: 5000 # MW
     AF: "WIND_ONSHORE"
-
+    CfD:
+      CfD_strike: 64 # €/MWh, strike price of CfD 
+      CfD_capacity: 0.6

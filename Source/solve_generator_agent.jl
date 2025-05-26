@@ -22,6 +22,12 @@ function solve_generator_agent!(mod::Model)
 
 
     optimize!(mod);
+ #   JH = mod.ext[:sets][:JH]
+ #   total_revenue = mod.ext[:expressions][:total_revenue]
+ #   revenue_total = sum(value.(total_revenue[jh]) for jh in JH)
+
+   # println("📊 Total generator revenue (with CfD correction): €", round(revenue_total, digits=2))
+   # total_effective_revenue = cfd_strike * sum(value(g[jh]) for jh in JH)
 
     return mod
 end
