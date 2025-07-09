@@ -1,0 +1,11 @@
+Metric,TypeC,TypeA,TypeB
+TotalCfDSaving,0.0,342933.79,0.0
+TotalCost,218972.98,-159439.38,-252343.68
+EffectiveCost,218972.98,-502373.16,-252343.68
+ElasticDemand,539.46,422.31,1078.44
+BatteryCharge,0.0,0.0,0.0
+BatteryDischarge,11.11,3.9,10.73
+SelfConsumptionRatio,0.6,1.0,1.0
+PV_DirectUse,2743.6,1371.68,4572.28
+PV_BatteryUse,0.0,0.0,0.0
+PV_Exported,1828.68,0.0,0.0

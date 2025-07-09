@@ -18,15 +18,15 @@ Consumers: # Set of representative consumers
    D: "CONS_LOW" # Demand timeseries that needs to be picked up
    PV_AF: "SOLAR_SOUTH" # AF solar timeseries that needs to be picked up
    WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
-   cfd_share: 0.5 # Share of demand that is hedged by CfD
-   cfd_strike_price: 64 # €/MWh, strike price of CfD
+   cfd_share: 1 # Share of demand that is hedged by CfD
+   cfd_strike_price: 10 # €/MWh, strike price of CfD
    Battery:
     cap_smax: 10
     EC: 0.95
     ED: 0.96
-    Decay: 0.9999
-    winj: 0.1
-    wwith: 0.1
+    Decay: 0.9999 # Decay factor for battery capacity per timestep
+    winj: 10
+    wwith: 10
 
   TypeB: 
    Share: 0.5  # Share of consumers in overall consumer mix
@@ -40,9 +40,9 @@ Consumers: # Set of representative consumers
     cap_smax: 10
     EC: 0.95
     ED: 0.96
-    Decay: 0.9999
-    winj: 0.1
-    wwith: 0.1
+    Decay: 0.9999 # Decay factor for battery capacity per timestep
+    winj: 10
+    wwith: 10
 
   TypeC: 
    Share: 0.25  # Share of consumers in overall consumer mix
@@ -56,9 +56,9 @@ Consumers: # Set of representative consumers
     cap_smax: 10
     EC: 0.95
     ED: 0.96
-    Decay: 0.9999
-    winj: 0.1
-    wwith: 0.1
+    Decay: 0.9999 # Decay factor for battery capacity per timestep
+    winj: 10
+    wwith: 10
 
 Generators: 
   # OPEX are parametrized as a/2 x g^2 + b x g 

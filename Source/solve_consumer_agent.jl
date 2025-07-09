@@ -9,19 +9,28 @@ function solve_consumer_agent!(mod::Model)
    ρ_EOM = mod.ext[:parameters][:ρ_EOM] # rho-value in ADMM related to EOM auctions
    D_ELA_max = mod.ext[:parameters][:D_ELA_max]  # Max elastic demand
    D_fixed = mod.ext[:parameters][:D_fixed] 
+   cap_smax = mod.ext[:parameters][:cap_smax] # Battery capacity
+   EC = mod.ext[:parameters][:EC] # Charging efficiency
+   ED = mod.ext[:parameters][:ED] # Discharging efficiency
+   Decay = mod.ext[:parameters][:Decay] # Hourly decay
+   cfd_share = mod.ext[:parameters][:cfd_share] 
+   cfd_strike_price = mod.ext[:parameters][:cfd_strike_price] 
 
    # Create variables
    g = mod.ext[:variables][:g]  
    D_ELA = mod.ext[:variables][:D_ELA]
-   charge = mod.ext[:variables][:charge] = @variable(mod, [jh=JH], base_name="charge") # charge
+   charge = mod.ext[:variables][:charge] = @variable(mod, [jh=JH], lower_bound = 0, base_name="charge") # charge
    discharge = mod.ext[:variables][:discharge] = @variable(mod, [jh=JH], base_name="discharge") # discharge
+   SOC = mod.ext[:variables][:SOC] = @variable(mod, [jh=JH], base_name="SOC") # state of charge
 
    # Create affine expressions
    utility_term = mod.ext[:expressions][:utility_term]
+   D_CfD = mod.ext[:expressions][:D_CfD] = @expression(mod, [jh in JH], cfd_share * (D_fixed[jh] + D_ELA[jh])) # Share of demand hedged by CfD
+   cfd_saving = mod.ext[:expressions][:cfd_saving] = @expression(mod, [jh in JH], (λ_EOM[jh] - cfd_strike_price) * D_CfD[jh]) # saved revenue by CfD for consumer
 
    # Objective 
    mod.ext[:objective] = @objective(mod, Min,
-       - sum(λ_EOM[jh]*g[jh] for jh in JH)
+       - sum(λ_EOM[jh]*g[jh] for jh in JH) #maximize revenue from selling energy to the grid
        + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
        - sum(utility_term[jh] for jh in JH) # Utility term
 
@@ -39,25 +48,17 @@ function solve_consumer_agent!(mod::Model)
     mod.ext[:constraints][:elastic_demand] = @constraint(mod, [jh in JH],
     D_ELA[jh] <= D_ELA_max[jh]
     )
-
-#    mod.ext[:constraints][:demand_balance] = @constraint(mod, [jh in JH],
-#    g[jh] <= PV[jh] - D_fixed[jh] - D_elastic[jh] * (1 + elasticity * λ_EOM[jh])
-#    )
-   # mod.ext[:constraints][:demand_balance] = @constraint(mod, [jh in JH],
-   # g[jh] <= D_fixed[jh] + D_elastic[jh] * (1 + elasticity * λ_EOM[jh])
-  #  )
+    mod.ext[:constraints][:state_of_charge] = @constraint(mod, [t in 2:length(JH)],
+    SOC[JH[t]] == SOC[JH[t-1]] * Decay + charge[JH[t-1]] * EC - discharge[JH[t-1]] / ED
+    )
+    mod.ext[:constraints][:initial_SOC] = @constraint(mod, SOC[JH[1]] == 0
+    ) #0.5 * cap_smax)
+    mod.ext[:constraints][:discharge_limit] = @constraint(mod, [jh in JH],
+        discharge[jh] <= SOC[jh] # Discharge cannot exceed state of charge adjusted for efficiency
+    )
     # @constraint(mod, [jh in JH], charge[jh] <= PV[jh]) # Battery can only charge from PV production or the grid
     optimize!(mod);
-   
-    consumer_models = Dict(
-      name => mod for (name, mod) in mdict if startswith(name, "Type")
-  )
-  for (name, mod) in consumer_models
-    JH = mod.ext[:sets][:JH]
-    cfd_saving = mod.ext[:expressions][:cfd_saving]
-    total_saving = sum(value(cfd_saving[jh]) for jh in JH)
-
-    println("💰 Total CfD saving for $name = €", round(total_saving, digits=2))
-  end
+    
+    
     return mod
 end

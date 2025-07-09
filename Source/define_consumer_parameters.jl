@@ -12,7 +12,7 @@ function define_consumer_parameters!(mod::Model, data::Dict,ts::DataFrame)
     mod.ext[:parameters][:WTP] = data["WTP"]  # Willingness to pay
 
     # CfD parameters
-    mod.ext[:parameters][:cfd_share] = data["cfd_share"]  # 60% of total demand hedged
+    mod.ext[:parameters][:cfd_share] = data["cfd_share"]  # % of total demand hedged
     mod.ext[:parameters][:cfd_strike_price] = data["cfd_strike_price"]  # €/MWh (strike price)
     
     # Battery parameters
