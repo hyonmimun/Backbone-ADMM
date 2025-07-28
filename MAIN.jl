@@ -68,7 +68,7 @@ scenario_overview = CSV.read(joinpath(home_dir,"overview_scenarios.csv"),DataFra
 sensitivity_overview = CSV.read(joinpath(home_dir,"overview_sensitivity.csv"),DataFrame,delim=";") 
 
 # Create file with results 
-# add column for sensitivity analsysis
+# add column for sensitivity analysis
 if isfile(joinpath(home_dir,string("overview_results.csv"))) != 1
     CSV.write(joinpath(home_dir,string("overview_results.csv")),DataFrame(),delim=";",header=["scen_number";"sensitivity";"n_iter";"walltime";"PrimalResidual_EOM"; "DualResidual_EOM"])
 end
@@ -112,13 +112,16 @@ println(string("######################                  Scenario ",scen_number,"
 
 ## 1. Read associated input for this simulation
 scenario_overview_row = scenario_overview[scen_number,:]
+market_design = scenario_overview_row["market_design"]
 data = YAML.load_file(joinpath(home_dir,"Input","config.yaml")) # reload data to avoid previous sensitivity analysis affected data
 
 if scenario_overview_row["Sens_analysis"] == "YES"  
     numb_of_sens = length((sensitivity_overview[!,:Parameter]))
 else
     numb_of_sens = 0 
-end    
+end  
+
+# Sensitivity analysis
 sens_number = 1 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the sensitivity you'd like to study
 # for sens_number in range(1,stop=numb_of_sens+1,step=1) 
 if sens_number >= 2
@@ -149,18 +152,18 @@ mdict = Dict(i => Model(optimizer_with_attributes(() -> Gurobi.Optimizer(GUROBI_
 ## 3. Define parameters for markets and representative agents
 # Parameters/variables EOM
 EOM = Dict()
-define_EOM_parameters!(EOM,data,ts,scenario_overview_row)
+define_EOM_parameters!(EOM,data,ts,scenario_overview_row,market_design)
 # Market 2
 
-# consumer models
+# Consumer models
 for m in agents[:Cons]
-    define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row)                                  # Parameters common to all agents
-    define_consumer_parameters!(mdict[m],merge(data["General"],data["Consumers"][m]),ts)                        # Consumers
+    define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row,market_design)                                  # Parameters common to all agents
+    define_consumer_parameters!(mdict[m],merge(data["General"],data["CfD"],data["Consumers"][m]),ts, market_design)                      # Consumers
 end
 # Generator models
 for m in agents[:Gen]
-    define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row)                                  # Parameters common to all agents
-    define_generator_parameters!(mdict[m],merge(data["General"],data["Generators"][m]),ts)                      # Generators
+    define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row, market_design)                                  # Parameters common to all agents
+    define_generator_parameters!(mdict[m],merge(data["General"],data["CfD"],data["Generators"][m]),ts, market_design)                      # Generators
 end
 
 # Calculate number of agents in each market
@@ -171,10 +174,10 @@ println("   ")
 
 ## 4. Build models
 for m in agents[:Cons]
-    build_consumer_agent!(mdict[m])
+    build_consumer_agent!(mdict[m], market_design)
 end
 for m in agents[:Gen]
-    build_generator_agent!(mdict[m])
+    build_generator_agent!(mdict[m], market_design)
 end
 
 println("Build model: done")
@@ -190,7 +193,7 @@ results = Dict()
 ADMM = Dict()
 TO = TimerOutput()
 define_results!(merge(data["General"],data["ADMM"]),results,ADMM,agents)           # initialize structure of results, only those that will be stored in each iteration
-ADMM!(results,ADMM,EOM,mdict,agents,scenario_overview_row,data,TO)                 # calculate equilibrium 
+ADMM!(results,ADMM,EOM,mdict,agents,scenario_overview_row,data,TO, market_design)                 # calculate equilibrium 
 ADMM["walltime"] =  TimerOutputs.tottime(TO)*10^-9/60                              # wall time 
 
 println(string("Done!"))
@@ -203,11 +206,11 @@ println(string("        "))
 
 ## 6. Postprocessing and save results 
 if sens_number >= 2
-save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,sensitivity_overview[sens_number-1,:remarks]) 
-# @save joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],"_",sensitivity_overview[sens_number-1,:remarks]))
+save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,sensitivity_overview[sens_number-1,:remarks],market_design) 
+# @save joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],"_",sensitivity_overview[sens_number-1,:remarks],market_design))
 else
-save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,"ref") 
-# @save joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],"_ref"))
+save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,"ref",market_design) 
+# @save joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],"_ref"),market_design)
 end
 
 println("Postprocessing & save results: done")

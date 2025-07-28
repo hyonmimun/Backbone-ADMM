@@ -8,8 +8,10 @@ ADMM:
  epsilon: 0.1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
  CircularBufferSize: 10 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
 
-EOM: 
-  parameter_A: 1 # dummy, not used 
+CfD: 
+  lambda_cfd: 1 # dummy, not used
+  rho_cfd: 1 #rho penalty term, CfD
+  epsilon_cfd: 0.1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
 
 Consumers: # Set of representative consumers
   TypeA:
@@ -18,8 +20,6 @@ Consumers: # Set of representative consumers
    D: "CONS_LOW" # Demand timeseries that needs to be picked up
    PV_AF: "SOLAR_SOUTH" # AF solar timeseries that needs to be picked up
    WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
-   cfd_share: 0.5 # Share of demand that is hedged by CfD
-   cfd_strike_price: 64 # €/MWh, strike price of CfD
    Battery:
     cap_smax: 10
     EC: 0.95
@@ -34,8 +34,6 @@ Consumers: # Set of representative consumers
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
    WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
-   cfd_share: 0 # Share of demand that is hedged by CfD
-   cfd_strike_price: 0 # €/MWh, strike price of CfD
    Battery:
     cap_smax: 10
     EC: 0.95
@@ -50,8 +48,6 @@ Consumers: # Set of representative consumers
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
    WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
-   cfd_share: 0 # Share of demand that is hedged by CfD
-   cfd_strike_price: 0 # €/MWh, strike price of CfD
    Battery:
     cap_smax: 10
     EC: 0.95
@@ -67,24 +63,21 @@ Generators:
     b: 0 # €/MWh
     C: 5000 # MW
     CfD:
-      CfD_strike: 64 # €/MWh, strike price of CfD 
-      CfD_capacity: 0.6
+      CfD_strike: 64 # €/MWh, strike price of CfD
 
   MidMerit:
     a: 0.032 # (€/MWh)^2
     b: 40 # €/MWh
     C: 5000 # MW
     CfD:
-      CfD_strike: 64 # €/MWh, strike price of CfD 
-      CfD_capacity: 0.6
+      CfD_strike: 64 # €/MWh, strike price of CfD
 
   Peak:
     a: 0.08 # (€/MWh)^2
     b: 200 # €/MWh
     C: 5000 # MW
     CfD:
-      CfD_strike: 64 # €/MWh, strike price of CfD 
-      CfD_capacity: 0.6
+      CfD_strike: 64 # €/MWh, strike price of CfD
   
   WindOnshore:
     a: 0 # (€/MWh)^2
@@ -92,5 +85,21 @@ Generators:
     C: 5000 # MW
     AF: "WIND_ONSHORE"
     CfD:
-      CfD_strike: 64 # €/MWh, strike price of CfD 
-      CfD_capacity: 0.6
+      CfD_strike: 64 # €/MWh, strike price of CfD
+  
+  WindOffshore:
+    a: 0 # (€/MWh)^2
+    b: 0 # €/MWh
+    C: 5000 # MW
+    AF: "WIND_OFFSHORE"
+    CfD:
+      CfD_strike: 64 # €/MWh, strike price of CfD
+  
+  SolarPanels:
+    a: 0 # (€/MWh)^2
+    b: 0 # €/MWh
+    C: 5000 # MW
+    AF: "SOLAR_SOUTH"
+    CfD:
+      CfD_strike: 64 # €/MWh, strike price of CfD
+

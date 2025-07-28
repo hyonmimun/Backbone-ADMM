@@ -1,41 +1,64 @@
-function build_generator_agent!(mod::Model)
+function build_generator_agent!(mod::Model, market_design::AbstractString)
     # Extract sets
     JH = mod.ext[:sets][:JH]
 
     # Extract time series data
-    AC = mod.ext[:timeseries][:AC]
+    AC = mod.ext[:timeseries][:AC] # Available capacity of the generator (MW)
+    AF = mod.ext[:timeseries][:AF] # Availability factor for generation
 
     # Extract parameters
     A = mod.ext[:parameters][:A] 
-    B = mod.ext[:parameters][:B]  
+    B = mod.ext[:parameters][:B]
+    C = mod.ext[:parameters][:C] # Installed capacity of generator [MW]
     λ_EOM = mod.ext[:parameters][:λ_EOM] # EOM prices
-    g_bar = mod.ext[:parameters][:g_bar] # element in ADMM penalty term related to EOM
+    g_bar = mod.ext[:parameters][:g_bar] # average/consensus signal from EOM at timestep jh
     ρ_EOM = mod.ext[:parameters][:ρ_EOM] # rho-value in ADMM related to EOM auctions
-
-    #cfd_capacity = mod.ext[:parameters][:cfd_capacity] # CfD capacity factor
-    cfd_strike = mod.ext[:parameters][:cfd_strike]
-    cfd_volume = mod.ext[:parameters][:cfd_volume] # CfD volume, if applicable
 
     # Create variables
     g = mod.ext[:variables][:g] = @variable(mod, [jh=JH], lower_bound=0, base_name="generation")
+    
+    # Build objective expression
+    objective_generator =
+        + sum(A/2*g[jh]^2 for jh in JH) # generation costs
+        + sum(B*g[jh] for jh in JH) # generation costs
+        - sum(λ_EOM[jh]*g[jh] for jh in JH)  # market revenue
+        + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH) # derivative of the quadratic penalty term results in ρ(g-g_bar): penalization of exactly 1
 
-    #Expressions
-    market_revenue = mod.ext[:expressions][:revenue] = @expression(mod, [jh in JH], λ_EOM[jh] * (g[jh]- cfd_volume[jh])) # Revenue from selling energy to the grid
-    cfd_revenue = mod.ext[:expressions][:cfd_revenue] = @expression(mod, [jh in JH], ((cfd_strike - λ_EOM[jh]) * cfd_volume[jh]) : 0) # Revenue from CfD if applicable
-    total_revenue = mod.ext[:expressions][:total_revenue] = @expression(mod, [jh in JH], market_revenue[jh] .+ cfd_revenue[jh]) # Total revenue
-     
+    if market_design == "CfD"
+        # CfD variables
+        Q_cfd_gen = mod.ext[:variables][:Q_cfd_gen] = @variable(mod, lower_bound=0, base_name="CfD_contracted_capacity") # CfD contracted capacity [MW]
+        g_cfd = mod.ext[:variables][:g_cfd] = @variable(mod, [jh=JH], lower_bound=0, base_name="CfD_generation") # individual generator's generation under CfD [MWh]
+        
+        # CfD parameters
+        λ_cfd = mod.ext[:parameters][:λ_cfd] # CfD strike price [€/MWh]
+        ζ_cfd = mod.ext[:parameters][:ζ_cfd] # CfD contract premium price [€/MW]
+        Q_cfd_bar = mod.ext[:parameters][:Q_cfd_bar] # Average CfD contracted capacity across all agents [MW]
+        ρ_CfD = mod.ext[:parameters][:ρ_cfd] # rho-value in ADMM related to CfD auctions
+        
+        # CfD expressions
+        cfd_payout_gen = mod.ext[:expressions][:cfd_payout_gen] = @expression(mod, [jh in JH], (λ_cfd - λ_EOM[jh]) * g_cfd[jh]) 
+        cfd_premium_gen = mod.ext[:expressions][:cfd_premium_gen] = @expression(mod, ζ_cfd * Q_cfd_gen)
+        cfd_penalty_gen = mod.ext[:expressions][:cfd_penalty_gen] = @expression(mod, ρ_CfD/2 * (Q_cfd_gen - Q_cfd_bar)^2) # delta between generator's contracted capacity and the market average NB: not time dependent
+        
+        # CfD objective adjustments
+        objective_generator -= sum(cfd_payout_gen[jh] for jh in JH)
+        objective_generator -= cfd_premium_gen
+        objective_generator += cfd_penalty_gen
+        
+        # CfD related constraints
+        mod.ext[:constraints][:g_cfd] = @constraint(mod, [jh in JH],
+        g_cfd[jh] <= AF[jh] * Q_cfd_gen
+        )
+        mod.ext[:constraints][:g_cfd_tot] = @constraint(mod, [jh in JH],
+        g_cfd[jh] <= g[jh]
+        )
+        mod.ext[:constraints][:cfd_installed_cap] = @constraint(mod, Q_cfd_gen <= C) # CfD contracted capacity cannot exceed installed capacity
 
-    # Objective 
-    mod.ext[:objective] = @objective(mod, Min,
-        + sum(A/2*g[jh]^2 for jh in JH)
-        + sum(B*g[jh] for jh in JH)
-        - sum(λ_EOM[jh]*g[jh] for jh in JH) #minimizing total cost of energy generation
-        + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
-    )
-
+    end    
+    
+    mod.ext[:objective] = @objective(mod, Min, objective_generator)
     mod.ext[:constraints][:cap_limit] = @constraint(mod, [jh=JH],
         g[jh] <=  AC[jh]
-    )
-
+        )
     return mod
 end

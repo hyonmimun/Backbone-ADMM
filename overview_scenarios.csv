@@ -1,3 +1,4 @@
-scen_number;ParameterA;Sens_analysis;remarks
-1;1;NO;ParameterA is a dummy - you could use this to control e.g. the flexibility incentive in this run
-2;2;YES;ParameterA is a dummy - you could use this to control e.g. the flexibility incentive in this run
+scen_number;market_design;λ_cfd;λ_ao;Sens_analysis;remarks
+1;default;;;NO;Default scenario
+2;CfD;;NO;NO; CfD scenario
+3;AO;NO;;NO;AO scenario
