@@ -34,6 +34,13 @@ function define_results!(data::Dict,results::Dict,ADMM::Dict,agents::Dict,market
 
 # CfD enabled
     if market_design == "CfD"
+        
+        results["Q_cfd_bar"] = Dict()
+        for m in agents[:eom]
+            results["Q_cfd_bar"][m] = CircularBuffer{Float64}(data["CircularBufferSize"])
+            push!(results["Q_cfd_bar"][m], 0.0)
+        end
+        
         results["g_cfd"] = Dict()
         for m in agents[:Gen]
             results["g_cfd"][m] = CircularBuffer{Array{Float64,1}}(data["CircularBufferSize"])
@@ -46,13 +53,28 @@ function define_results!(data::Dict,results::Dict,ADMM::Dict,agents::Dict,market
         results["Q_cfd_gen"] = Dict()
         for m in agents[:Gen]
             results["Q_cfd_gen"][m] = CircularBuffer{Float64}(data["CircularBufferSize"])
-            push!(results["Q_cfd_gen"][m], 0.0)
+            push!(results["Q_cfd_gen"][m], 0.0)        
         end
 
         results["Q_cfd_con"] = Dict()
         for m in agents[:Cons]
             results["Q_cfd_con"][m] = CircularBuffer{Float64}(data["CircularBufferSize"])
             push!(results["Q_cfd_con"][m], 0.0)
+        end
+
+        results["cfd_payout"] = Dict()
+        results["cfd_premium"] = Dict()
+        results["cfd_penalty_con"] = Dict()
+        
+        for m in agents[:Cons]
+            results["cfd_payout"][m] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])
+            push!(results["cfd_payout"][m], zeros(data["nTimesteps"]))
+
+            results["cfd_premium"][m] = CircularBuffer{Float64}(data["CircularBufferSize"])
+            push!(results["cfd_premium"][m], 0.0)
+
+            results["cfd_penalty_con"][m] = CircularBuffer{Float64}(data["CircularBufferSize"])
+            push!(results["cfd_penalty_con"][m], 0.0)
         end
 
         results["Q_cfd_con_tot"] = CircularBuffer{Float64}(data["CircularBufferSize"])
@@ -75,6 +97,25 @@ function define_results!(data::Dict,results::Dict,ADMM::Dict,agents::Dict,market
 
         ADMM["ρ"]["CfD"] = CircularBuffer{Float64}(data["CircularBufferSize"])
         push!(ADMM["ρ"]["CfD"], data["rho_cfd"])
+
+        ADMM["Q_cfd_bar_global_series"] = CircularBuffer{Float64}(data["CircularBufferSize"])
+        push!(ADMM["Q_cfd_bar_global_series"], 0.0)
+
+        results["cfd_payout_gen"] = Dict()
+        results["cfd_premium_gen"] = Dict()
+        results["cfd_penalty_gen"] = Dict()
+        
+        for m in agents[:Gen]
+            results["cfd_payout_gen"][m] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])
+            push!(results["cfd_payout_gen"][m], zeros(data["nTimesteps"]))
+
+            results["cfd_premium_gen"][m] = CircularBuffer{Float64}(data["CircularBufferSize"])
+            push!(results["cfd_premium_gen"][m], 0.0)
+
+            results["cfd_penalty_gen"][m] = CircularBuffer{Float64}(data["CircularBufferSize"])
+            push!(results["cfd_penalty_gen"][m], 0.0)
+        end
+
     end
     
     return results, ADMM

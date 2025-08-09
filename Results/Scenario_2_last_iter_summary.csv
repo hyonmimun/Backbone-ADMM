@@ -1,0 +1,11 @@
+Section;AgentType;Agent;primal_residual_CfD;dual_residual_CfD;lambda_CfD;zeta_cfd;Q_cfd_gen;Q_cfd_con;Q_cfd_gen_tot;Q_cfd_con_tot;share_cfd_gen;share_cfd_con
+AGENT;Cons;TypeA;;;;;;15.750000000000002;;;;0.21575349854571868
+AGENT;Cons;TypeB;;;;;;38.16665;;;;0.5228310009695208
+AGENT;Cons;TypeC;;;;;;19.083325;;;;0.2614155004847604
+AGENT;Gen;Baseload;;;;;24.348823281316726;;;;0.3333333333333333;
+AGENT;Gen;MidMerit;;;;;24.348823281316726;;;;0.3333333333333333;
+AGENT;Gen;Peak;;;;;24.348823281316726;;;;0.3333333333333333;
+AGENT;Gen;SolarPanels;;;;;0.0;;;;0.0;
+AGENT;Gen;WindOffshore;;;;;0.0;;;;0.0;
+AGENT;Gen;WindOnshore;;;;;0.0;;;;0.0;
+SUMMARY;ALL;ALL;0.046494843950171116;0.00858134720753944;250.0;-5538.248017690832;;;73.04646984395018;72.999975;;

@@ -33,7 +33,7 @@ using TimerOutputs # profiling
 using Base.Threads: @spawn 
 using Base: split
 using ArgParse # Parsing arguments from the command line
-# using JLD2 # save workspace
+using JLD2 # save workspace
 
 # Gurobi environment to suppress output
 println("Define Gurobi environment...")
@@ -104,11 +104,13 @@ else
     stop_scen = 2
 end
 
-scen_number = 1 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the scenario you'd like to study
-# for scen_number in range(start_scen,stop=stop_scen,step=1)
+scen_number = 2 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the scenario you'd like to study
+#for scen_number in range(start_scen, stop=stop_scen, step=1)
 
 println("    ")
 println(string("######################                  Scenario ",scen_number,"                 #########################"))
+
+#end
 
 ## 1. Read associated input for this simulation
 scenario_overview_row = scenario_overview[scen_number,:]
@@ -153,12 +155,12 @@ mdict = Dict(i => Model(optimizer_with_attributes(() -> Gurobi.Optimizer(GUROBI_
 # Parameters/variables EOM
 EOM = Dict()
 define_EOM_parameters!(EOM,data,ts,scenario_overview_row,market_design)
-# Market 2
+results = Dict()
 
 # Consumer models
 for m in agents[:Cons]
     define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row,market_design)                                  # Parameters common to all agents
-    define_consumer_parameters!(mdict[m],merge(data["General"],data["CfD"],data["Consumers"][m]),ts, market_design)                      # Consumers
+    define_consumer_parameters!(mdict[m],merge(data["General"],data["CfD"],data["Consumers"][m]),ts, market_design,results)                      # Consumers
 end
 # Generator models
 for m in agents[:Gen]
@@ -189,10 +191,10 @@ println("   ")
 println("(Progress indicators on primal residuals, relative to tolerance: <1 indicates convergence)")
 println("   ")
 
-results = Dict()
+#results = Dict()
 ADMM = Dict()
 TO = TimerOutput()
-define_results!(merge(data["General"],data["ADMM"]),results,ADMM,agents)           # initialize structure of results, only those that will be stored in each iteration
+define_results!(merge(data["General"],data["ADMM"],data["CfD"]),results,ADMM,agents, market_design) # initialize structure of results, only those that will be stored in each iteration
 ADMM!(results,ADMM,EOM,mdict,agents,scenario_overview_row,data,TO, market_design)                 # calculate equilibrium 
 ADMM["walltime"] =  TimerOutputs.tottime(TO)*10^-9/60                              # wall time 
 
@@ -204,13 +206,16 @@ println(string("RP EOM: ",  ADMM["Residuals"]["Primal"]["EOM"][end], " -- Tolera
 println(string("RD EOM: ",  ADMM["Residuals"]["Dual"]["EOM"][end], " -- Tolerance: ",ADMM["Tolerance"]["EOM"]))
 println(string("        "))
 
+println("Σ Q_cfd_gen = ", sum(results["Q_cfd_gen"][m][end] for m in agents[:Gen]))
+println("Σ Q_cfd_con = ", sum(results["Q_cfd_con"][m][end] for m in agents[:Cons]))
+
 ## 6. Postprocessing and save results 
 if sens_number >= 2
 save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,sensitivity_overview[sens_number-1,:remarks],market_design) 
-# @save joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],"_",sensitivity_overview[sens_number-1,:remarks],market_design))
+@save joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],"_",sensitivity_overview[sens_number-1,:remarks],market_design))
 else
-save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,"ref",market_design) 
-# @save joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],"_ref"),market_design)
+save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,"ref",market_design) # for csv files
+@save joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],".jld2")) results ADMM EOM agents data market_design
 end
 
 println("Postprocessing & save results: done")

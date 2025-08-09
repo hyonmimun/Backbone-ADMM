@@ -29,34 +29,40 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
    # Redefine utility_term expression since parameters are udpated each iteration (D_ELA_max comes from time-varying demand profile)
    
    # Build objective function
-   objective_consumer =            
+   objective_consumer = mod.ext[:expressions][:objective_generator] = @expression(mod,            
         - sum(λ_EOM[jh]*g[jh] for jh in JH)
         + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
-        - sum(utility_term[jh] for jh in JH)
+        - sum(utility_term[jh] for jh in JH))
 
    if market_design == "CfD"    
-    
-    # CfD variables
-    Q_cfd_con = mod.ext[:variables][:Q_cfd_con]
+        # CfD variables
+        Q_cfd_con = mod.ext[:variables][:Q_cfd_con]
 
-    # CfD parameters
-    λ_cfd = mod.ext[:parameters][:λ_cfd]  # €/MWh (strike price)
-    ζ_cfd = mod.ext[:parameters][:ζ_cfd]  # €/MWh (CfD contract premium)
-    g_cfd_total = mod.ext[:parameters][:g_cfd_total] # total generation under CfD
-    Q_cfd_bar = mod.ext[:parameters][:Q_cfd_bar] # Average CfD contracted capacity across all agents [MW]
-    ρ_CfD = mod.ext[:parameters][:ρ_cfd] # rho-value in ADMM related to CfD auctions
-    Q_cfd_con_tot = [:parameters][:Q_cfd_con_tot] # Total CfD contracted capacity of all consumers
+        # CfD parameters
+        λ_cfd = mod.ext[:parameters][:λ_cfd]  # €/MWh (strike price)
+        ζ_cfd = mod.ext[:parameters][:ζ_cfd]  # €/MWh (CfD contract premium)
+        g_cfd_total = mod.ext[:parameters][:g_cfd_total] # total generation under CfD
+        Q_cfd_bar = mod.ext[:parameters][:Q_cfd_bar] # Average CfD contracted capacity across all agents [MW]
+        ρ_CfD = mod.ext[:parameters][:ρ_cfd] # rho-value in ADMM related to CfD auctions
+        Q_cfd_con_tot = mod.ext[:parameters][:Q_cfd_con_tot] # Total CfD contracted capacity of all consumers
 
-    # CfD expressions
-    share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, Q_cfd_con / Q_cfd_con_tot)
-    cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod, [jh in JH], share_cfd_con*(λ_EOM[jh] - λ_cfd) * g_cfd_total[jh])
-    cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * Q_cfd_con)
-    cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_CfD/2 * (Q_cfd_con - Q_cfd_bar)^2)
-    
-    # CfD objective adjustments
-    objective_consumer -= sum(cfd_payout[jh] for jh in JH)
-    objective_consumer += cfd_premium
-    objective_consumer += cfd_penalty_con
+        # CfD expressions
+        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, Q_cfd_con / Q_cfd_con_tot)
+        cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod, [jh in JH], share_cfd_con*(λ_EOM[jh] - λ_cfd) * g_cfd_total[jh])
+        #cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod, [jh in JH], (λ_EOM[jh] - λ_cfd) *  Q_cfd_con)
+        cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * Q_cfd_con)
+        cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_CfD/2 * (Q_cfd_con - Q_cfd_bar)^2)
+        #cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_CfD/2 * ((Q_cfd_con - Q_cfd_bar)/(Q_cfd_bar + 0.0001))^2)
+        
+        # Redefine objective for CfD scenario
+        objective_consumer = mod.ext[:expressions][:objective_generator] = @expression(mod,            
+            - sum(λ_EOM[jh]*g[jh] for jh in JH)
+            + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
+            - sum(utility_term[jh] for jh in JH)
+            - sum(cfd_payout[jh] for jh in JH)
+            + cfd_premium
+            + cfd_penalty_con
+            )
 
     end
     
@@ -72,21 +78,6 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
     g[jh] == - D_fixed[jh] - D_ELA[jh] + PV[jh] - charge[jh] + discharge[jh]
     )
 
-    if m in ["TypeA", "TypeB", "TypeC"]
-            println("\n=== Debug info for agent $m ===")
-            println("λ_EOM: ", mod.ext[:parameters][:λ_EOM])
-            println("ρ_EOM: ", mod.ext[:parameters][:ρ_EOM])
-            println("g_bar: ", mod.ext[:parameters][:g_bar])
-            if market_design == "CfD"
-                println("Q_cfd_bar: ", mod.ext[:parameters][:Q_cfd_bar])
-                println("ρ_CfD: ", mod.ext[:parameters][:ρ_CfD])
-                println("ζ_cfd: ", mod.ext[:parameters][:ζ_cfd])
-            end
-        end
-
    optimize!(mod)
-    #println("Termination status: ", termination_status(mod))
-    #println("Primal status: ", primal_status(mod))
-    #println("Dual status: ", dual_status(mod))
    return mod
 end

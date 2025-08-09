@@ -5,24 +5,11 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
     
     for iter in iterations
         if convergence == 0 # convergence not reached yet; loop continues solving
+            
             # Multi-threaded version
             @sync for m in agents[:all]
                 # created subroutine to allow multi-threading to solve agents' decision problems
                 @spawn ADMM_subroutine!(m,results,ADMM,EOM,mdict[m],agents,TO,market_design)
-            end
-        end
-        
-        # Aggregate g_cfd from all generators and update consumer parameter
-        if market_design == "CfD" && !isempty(agents[:Gen])
-            g_cfd_agg = zeros(data["nTimesteps"]) 
-            for gen in agents[:Gen]
-                g_cfd_agg .+= results["g_cfd"][gen][end] # .+= element-wise addtion for all time steps
-            end
-            push!(results["g_cfd_total"], g_cfd_agg)
-
-            # Inject this into each consumer's model
-            for cons in agents[:Cons]
-                mdict[cons].ext[:parameters][:g_cfd_total] = g_cfd_agg
             end
         end
 
@@ -31,11 +18,15 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
                 push!(ADMM["Imbalances"]["EOM"], sum(results["g"][m][end] for m in agents[:eom]) - EOM["D"][:])
                 
                 if market_design == "CfD"
-                    push!(ADMM["Imbalances"]["CfD"], sum(results["Q_CfD_gen"][m][end] for m in agents[:Gen]) - sum(results["Q_CfD_con"][m][end] for m in agents[:Cons])) # CfD imbalance in contract volume between aggregated generator and consumer
+                    push!(ADMM["Imbalances"]["CfD"], 
+                    sum(results["Q_cfd_gen"][m][end] for m in agents[:Gen]) 
+                    - sum(results["Q_cfd_con"][m][end] for m in agents[:Cons])) # CfD imbalance in contract volume between aggregated generator and consumer
+
                 end
             end
 
-            # Primal residuals 
+
+            # Primal residuals
             @timeit TO "Compute primal residuals" begin
                 push!(ADMM["Residuals"]["Primal"]["EOM"], sqrt(sum(ADMM["Imbalances"]["EOM"][end].^2)))
                 
@@ -50,8 +41,9 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
                 push!(ADMM["Residuals"]["Dual"]["EOM"], sqrt(sum(sum((ADMM["ρ"]["EOM"][end]*((results["g"][m][end]-sum(results["g"][mstar][end] for mstar in agents[:eom])./(EOM["nAgents"]+1)) - (results["g"][m][end-1]-sum(results["g"][mstar][end-1] for mstar in agents[:eom])./(EOM["nAgents"]+1)))).^2 for m in agents[:eom]))))
                 
                 if market_design == "CfD"    
-                    push!(ADMM["Residuals"]["Dual"]["CfD"], sqrt(sum(ADMM["ρ"]["CfD"][end]*((sum(results["Q_CfD_gen"][m][end] for m in agents[:Gen]) - sum(results["Q_CfD_con"][m][end] for m in agents[:Cons])) - (sum(results["Q_CfD_gen"][m][end-1] for m in agents[:Gen]) - sum(results["Q_CfD_con"][m][end-1] for m in agents[:Cons])))).^2)) # CfD dual residuals            
+                    push!(ADMM["Residuals"]["Dual"]["CfD"], sqrt(sum(ADMM["ρ"]["CfD"][end]*((sum(results["Q_cfd_gen"][m][end] for m in agents[:Gen]) - sum(results["Q_cfd_con"][m][end] for m in agents[:Cons])) - (sum(results["Q_cfd_gen"][m][end-1] for m in agents[:Gen]) - sum(results["Q_cfd_con"][m][end-1] for m in agents[:Cons])))).^2)) # CfD dual residuals            
                 end
+
             end
 
             # Price updates 
@@ -60,6 +52,7 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
                 
                 if market_design == "CfD"
                     push!(results[ "ζ"]["CfD"], results[ "ζ"]["CfD"][end] - ADMM["ρ"]["CfD"][end]/100*ADMM["Imbalances"]["CfD"][end])
+                    #println(string("ζ_cfd: ", results[ "ζ"]["CfD"][end]))
                 end
             end
 
@@ -74,9 +67,7 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
                     set_description(iterations, string(@sprintf("Primal residual - EOM: %.3f -- Dual residual - EOM: %.3f",ADMM["Residuals"]["Primal"]["EOM"][end],ADMM["Residuals"]["Dual"]["EOM"][end])))
                 
                 elseif market_design == "CfD"
-                    set_description(iterations, @sprintf("EOM Primal: %.3f | Dual: %.3f   ||  CfD Primal: %.3f | Dual: %.3f",
-                     ADMM["Residuals"]["Primal"]["EOM"][end],
-                     ADMM["Residuals"]["Dual"]["EOM"][end],
+                    set_description(iterations, @sprintf("CfD Primal: %.3f | Dual: %.3f",
                      ADMM["Residuals"]["Primal"]["CfD"][end],
                      ADMM["Residuals"]["Dual"]["CfD"][end]))
                 end
@@ -98,6 +89,7 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
             end
             # store number of iterations
             ADMM["n_iter"] = copy(iter)
+
         end
     end
 end

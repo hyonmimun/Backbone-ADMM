@@ -11,7 +11,7 @@ function update_rho!(ADMM::Dict, iter::Int64, market_design::AbstractString)
 
         if market_design == "CfD"
             if ADMM["Residuals"]["Primal"]["CfD"][end] > 2 * ADMM["Residuals"]["Dual"]["CfD"][end]
-                push!(ADMM["ρ"]["CfD"], minimum(1000.0, 1.1 * ADMM["ρ"]["CfD"][end]))
+                push!(ADMM["ρ"]["CfD"], minimum([1000.0, 1.1 * ADMM["ρ"]["CfD"][end]]))
             elseif ADMM["Residuals"]["Dual"]["CfD"][end] > 2 * ADMM["Residuals"]["Primal"]["CfD"][end]
                 push!(ADMM["ρ"]["CfD"], 1/1.1 * ADMM["ρ"]["CfD"][end])
             else

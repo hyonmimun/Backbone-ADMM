@@ -4,12 +4,12 @@ General:
 
 ADMM:
  rho_EOM: 1 # rho ADMM penalty term, EOM 
- max_iter: 10 # maximum number of iterations
+ max_iter: 50 # maximum number of iterations
  epsilon: 0.1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
- CircularBufferSize: 10 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
+ CircularBufferSize: 20 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
 
 CfD: 
-  lambda_cfd: 1 # dummy, not used
+  lambda_cfd: 250 
   rho_cfd: 1 #rho penalty term, CfD
   epsilon_cfd: 0.1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
 
@@ -62,44 +62,32 @@ Generators:
     a: 0.008 # (€/MWh)^2
     b: 0 # €/MWh
     C: 5000 # MW
-    CfD:
-      CfD_strike: 64 # €/MWh, strike price of CfD
 
   MidMerit:
     a: 0.032 # (€/MWh)^2
     b: 40 # €/MWh
     C: 5000 # MW
-    CfD:
-      CfD_strike: 64 # €/MWh, strike price of CfD
 
   Peak:
     a: 0.08 # (€/MWh)^2
     b: 200 # €/MWh
     C: 5000 # MW
-    CfD:
-      CfD_strike: 64 # €/MWh, strike price of CfD
   
   WindOnshore:
     a: 0 # (€/MWh)^2
     b: 0 # €/MWh
     C: 5000 # MW
     AF: "WIND_ONSHORE"
-    CfD:
-      CfD_strike: 64 # €/MWh, strike price of CfD
   
   WindOffshore:
     a: 0 # (€/MWh)^2
     b: 0 # €/MWh
     C: 5000 # MW
     AF: "WIND_OFFSHORE"
-    CfD:
-      CfD_strike: 64 # €/MWh, strike price of CfD
   
   SolarPanels:
     a: 0 # (€/MWh)^2
     b: 0 # €/MWh
     C: 5000 # MW
     AF: "SOLAR_SOUTH"
-    CfD:
-      CfD_strike: 64 # €/MWh, strike price of CfD
 

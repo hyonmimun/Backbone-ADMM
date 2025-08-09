@@ -1,6 +1,6 @@
-function define_consumer_parameters!(mod::Model, data::Dict,ts::DataFrame, market_design::AbstractString)
+function define_consumer_parameters!(mod::Model, data::Dict, ts::DataFrame, market_design::AbstractString, results::Dict)
     # Parameters - note consumers are rescaled (total number of consumers x share of this type of consumer)
-    # Parameters that are static
+  
     mod.ext[:timeseries][:D] = data["totConsumers"]*data["Share"]*ts[!,data["D"]] # demand profile 
     mod.ext[:timeseries][:PV] = data["totConsumers"]*data["Share"]*data["PV_cap"]*ts[!,data["PV_AF"]] # pv profile 
     
@@ -23,6 +23,12 @@ function define_consumer_parameters!(mod::Model, data::Dict,ts::DataFrame, marke
         # CfD parameters
         mod.ext[:parameters][:λ_cfd] = data["lambda_cfd"] # €/MWh (strike price)
         mod.ext[:parameters][:g_cfd] = zeros(data["nTimesteps"]) # generation under CfD
+        mod.ext[:parameters][:g_cfd_total] = zeros(data["nTimesteps"]) # total generation under CfD
+        if haskey(results, "Q_cfd_con_tot") && length(results["Q_cfd_con_tot"]) > 0
+                mod.ext[:parameters][:Q_cfd_con_tot] = results["Q_cfd_con_tot"][end]
+        else
+            mod.ext[:parameters][:Q_cfd_con_tot] = 1
+        end
     end
 
     return mod

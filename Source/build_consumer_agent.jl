@@ -33,15 +33,16 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     utility_term = mod.ext[:expressions][:utility_term] = @expression(mod, [jh in JH], WTP * D_ELA[jh] - (WTP / (2 * D_ELA_max[jh])) * D_ELA[jh]^2)
     
     # Build objective function
-    objective_consumer =            
+    objective_consumer = mod.ext[:expressions][:objective_generator] = @expression(mod,            
         - sum(λ_EOM[jh]*g[jh] for jh in JH)
         + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
-        - sum(utility_term[jh] for jh in JH)
+        - sum(utility_term[jh] for jh in JH))
 
     if market_design == "CfD"
-        
         # CfD variables
         Q_cfd_con = mod.ext[:variables][:Q_cfd_con] = @variable(mod, lower_bound=0, base_name="CfD_contracted_capacity") # CfD contracted capacity [MW]
+
+        #println("Q_cfd_con:", mod.ext[:variables][:Q_cfd_con])
 
         # CfD parameters
         λ_cfd = mod.ext[:parameters][:λ_cfd]  # €/MWh (strike price)
@@ -49,19 +50,32 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
         g_cfd_total = mod.ext[:parameters][:g_cfd_total] # Total generation of all generators under CfD
         Q_cfd_bar = mod.ext[:parameters][:Q_cfd_bar] # Average CfD contracted capacity across all agents [MW]
         ρ_CfD = mod.ext[:parameters][:ρ_cfd] # rho-value in ADMM related to CfD auctions
-        Q_cfd_con_tot = mod.ext[:parameters][:Q_cfd_con_tot] # Total CfD contracted capacity of all consumers
+        Q_cfd_con_tot = mod.ext[:parameters][:Q_cfd_con_tot] # Total CfD contracted capacity of all consumers, perhaps not working bc of the different iteration steps, consider using Q_cfd_gen_tot instead
+
+        #println("λ_cfd:", mod.ext[:parameters][:λ_cfd])
+        #println("g_cfd:", mod.ext[:parameters][:g_cfd])
+        #println("g_cfd_total:", mod.ext[:parameters][:g_cfd_total])
+        #println("Q_cfd_con_tot", mod.ext[:parameters][:Q_cfd_con_tot])
 
         # CfD expressions
-        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, Q_cfd_con / Q_cfd_con_tot)
+        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, Q_cfd_con / (Q_cfd_con_tot+0.00001)) # Adding a small value to avoid dividing by zero
         cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod, [jh in JH], share_cfd_con * (λ_EOM[jh] - λ_cfd) * g_cfd_total[jh])
         cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * Q_cfd_con)
         cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_CfD/2 * (Q_cfd_con - Q_cfd_bar)^2)
+        #cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_CfD/2 * ((Q_cfd_con - Q_cfd_bar)/(Q_cfd_bar + 0.0001))^2) #coordination device
         
-        # CfD objective adjustments
-        objective_consumer -= sum(cfd_payout[jh] for jh in JH)
-        objective_consumer += cfd_premium
-        objective_consumer += cfd_penalty_con
-
+        # Redefine objective for CfD scenario
+        objective_consumer = mod.ext[:expressions][:objective_generator] = @expression(mod,            
+            - sum(λ_EOM[jh]*g[jh] for jh in JH)
+            + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
+            - sum(utility_term[jh] for jh in JH)
+            - sum(cfd_payout[jh] for jh in JH)
+            + cfd_premium
+            + cfd_penalty_con
+            )
+        mod.ext[:constraints][:cfd_demand_constraint] = @constraint(mod, [jh in JH],
+        Q_cfd_con <= sum(D_fixed[jh] + D_ELA_max[jh])
+        )
     end
     
     mod.ext[:objective] = @objective(mod, Min, objective_consumer)
@@ -76,6 +90,7 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     mod.ext[:constraints][:D_ELA] = @constraint(mod, [jh in JH],
     D_ELA[jh] <= D_ELA_max[jh] # Fixed demand cannot be negative
     )
+
     # Battery model 
     mod.ext[:constraints][:state_of_charge] = @constraint(mod, [t in 2:length(JH)],
     SOC[JH[t]] == SOC[JH[t-1]] * Decay + charge[JH[t-1]] * EC - discharge[JH[t-1]] / ED
