@@ -14,17 +14,16 @@ if market_design == "CfD"
     if m in agents[:Gen]
         mod.ext[:parameters][:Q_cfd_bar] =
             results["Q_cfd_gen"][m][end] -
-            (1 / (EOM["nAgents"]+1)) * ADMM["Imbalances"]["CfD"][end]
+            (1 / (EOM["nAgents"])) * ADMM["Imbalances"]["CfD"][end]
             push!(results["Q_cfd_bar"][m], mod.ext[:parameters][:Q_cfd_bar])
     
     elseif m in agents[:Cons]
         mod.ext[:parameters][:Q_cfd_bar] =
-        results["Q_cfd_con"][m][end] +
-        (1 / (EOM["nAgents"]+1)) * ADMM["Imbalances"]["CfD"][end]
+        results["Q_cfd_con"][m][end] -
+        (1 / (EOM["nAgents"])) * ADMM["Imbalances"]["CfD"][end]
         push!(results["Q_cfd_bar"][m], mod.ext[:parameters][:Q_cfd_bar])
     end
-
-    #mod.ext[:parameters][:Q_cfd_bar] = (Q_cfd_gen_tot + Q_cfd_con_tot) / 2
+    
     mod.ext[:parameters][:ζ_cfd] = results["ζ"]["CfD"][end]
     mod.ext[:parameters][:ρ_CfD] = ADMM["ρ"]["CfD"][end]
     mod.ext[:parameters][:Q_cfd_con_tot] = Q_cfd_con_tot
@@ -32,6 +31,11 @@ if market_design == "CfD"
     if m in agents[:Cons]
         push!(results["Q_cfd_con_tot"], Q_cfd_con_tot)
         mod.ext[:parameters][:Q_cfd_con_tot] = Q_cfd_con_tot
+    end
+
+        if m in agents[:Gen]
+        push!(results["Q_cfd_gen_tot"], Q_cfd_gen_tot)
+        mod.ext[:parameters][:Q_cfd_gen_tot] = Q_cfd_gen_tot
     end
 end
 
@@ -42,7 +46,7 @@ if m in agents[:Gen]
 
         # Aggregate g_cfd from all generators
         if market_design == "CfD" && !isempty(agents[:Gen])
-            g_cfd_agg = zeros(data["General"]["nTimesteps"])
+            g_cfd_agg = zeros(length(mod.ext[:sets][:JH]))
             for gen in agents[:Gen]
                 g_cfd_agg .+= results["g_cfd"][gen][end] # .+= element-wise addtion for all time steps
             end

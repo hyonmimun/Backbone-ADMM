@@ -13,21 +13,13 @@ function define_common_parameters!(m::String,mod::Model, data::Dict, ts::DataFra
     # Parameters related to the EOM
     mod.ext[:parameters][:λ_EOM] = zeros(data["General"]["nTimesteps"])   # Price structure
     mod.ext[:parameters][:g_bar] = zeros(data["General"]["nTimesteps"])   # ADMM penalty term
-    mod.ext[:parameters][:ρ_EOM] = data["ADMM"]["rho_EOM"]   
-    
-   # println("lambda_EOM: ", mod.ext[:parameters][:λ_EOM])
-   # println("g_bar: ", mod.ext[:parameters][:g_bar])
-   # println("rho_EOM: ", mod.ext[:parameters][:ρ_EOM])              # ADMM rho value
+    mod.ext[:parameters][:ρ_EOM] = data["ADMM"]["rho_EOM"]
 
     if market_design == "CfD"
     # Parameters related to the CfD
         mod.ext[:parameters][:ζ_cfd] = 0.0 # CfD premium
         mod.ext[:parameters][:Q_cfd_bar] = 0.0 # ADMM penalty term related to the CfD
         mod.ext[:parameters][:ρ_cfd] = data["CfD"]["rho_cfd"]
-
-       # println("zeta_cfd: ", mod.ext[:parameters][:ζ_cfd])
-       # println("Q_cfd_bar: ", mod.ext[:parameters][:Q_cfd_bar])
-       # println("rho_cfd: ", mod.ext[:parameters][:ρ_cfd]) 
     end
 
     return mod, agents

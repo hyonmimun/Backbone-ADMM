@@ -104,7 +104,7 @@ else
     stop_scen = 2
 end
 
-scen_number = 2 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the scenario you'd like to study
+scen_number = 1 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the scenario you'd like to study
 #for scen_number in range(start_scen, stop=stop_scen, step=1)
 
 println("    ")
@@ -206,8 +206,11 @@ println(string("RP EOM: ",  ADMM["Residuals"]["Primal"]["EOM"][end], " -- Tolera
 println(string("RD EOM: ",  ADMM["Residuals"]["Dual"]["EOM"][end], " -- Tolerance: ",ADMM["Tolerance"]["EOM"]))
 println(string("        "))
 
-println("Σ Q_cfd_gen = ", sum(results["Q_cfd_gen"][m][end] for m in agents[:Gen]))
-println("Σ Q_cfd_con = ", sum(results["Q_cfd_con"][m][end] for m in agents[:Cons]))
+if market_design == "CfD"
+    println("Σ Q_cfd_gen = ", sum(results["Q_cfd_gen"][m][end] for m in agents[:Gen]))
+    println("Σ Q_cfd_con = ", sum(results["Q_cfd_con"][m][end] for m in agents[:Cons]))
+end
+
 
 ## 6. Postprocessing and save results 
 if sens_number >= 2

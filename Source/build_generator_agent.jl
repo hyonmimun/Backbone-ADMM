@@ -36,11 +36,9 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
         # CfD variables
         Q_cfd_gen = mod.ext[:variables][:Q_cfd_gen] = @variable(mod, lower_bound=0, base_name="CfD_contracted_capacity") # CfD contracted capacity [MW]
         g_cfd = mod.ext[:variables][:g_cfd] = @variable(mod, [jh=JH], lower_bound=0, base_name="CfD_generation") # individual generator's generation under CfD [MWh]
-        
-        #println("Q_cfd_gen:", mod.ext[:variables][:Q_cfd_gen])
-        
+
         # CfD expressions
-        cfd_payout_gen = mod.ext[:expressions][:cfd_payout_gen] = @expression(mod, [jh in JH], (λ_cfd - λ_EOM[jh]) * g_cfd[jh]) 
+        cfd_payout_gen = mod.ext[:expressions][:cfd_payout_gen] = @expression(mod, [jh in JH], (λ_cfd - λ_EOM[jh]) * g_cfd[jh])
         cfd_premium_gen = mod.ext[:expressions][:cfd_premium_gen] = @expression(mod, ζ_cfd * Q_cfd_gen)
         cfd_penalty_gen = mod.ext[:expressions][:cfd_penalty_gen] = @expression(mod, ρ_CfD/2 * (Q_cfd_gen - Q_cfd_bar)^2) # delta between generator's contracted capacity and the market average NB: not time dependent
         #cfd_penalty_gen = mod.ext[:expressions][:cfd_penalty_gen] = @expression(mod, ρ_CfD/2 * ((Q_cfd_gen - Q_cfd_bar)/(Q_cfd_bar + 0.0001))^2)
@@ -49,7 +47,7 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
         objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
         + sum(A/2*g[jh]^2 for jh in JH)
         + sum(B*g[jh] for jh in JH)
-        - sum(λ_EOM[jh]*g[jh] for jh in JH) #minimizing total cost of energy generation
+        - sum(λ_EOM[jh]*g[jh] for jh in JH) # minimizing total cost of energy generation
         + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
         - sum(cfd_payout_gen[jh] for jh in JH)
         - cfd_premium_gen
@@ -57,9 +55,8 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
         )
         
         # CfD related constraints
-        mod.ext[:constraints][:g_cfd] = @constraint(mod, [jh in JH],
-        g_cfd[jh] <= AF[jh] * Q_cfd_gen
-        )
+        mod.ext[:constraints][:g_cfd] = @constraint(mod, [jh in JH], g_cfd[jh] <= AF[jh] * Q_cfd_gen)
+        mod.ext[:constraints][:gen_cfd] = @constraint(mod, [jh in JH], g_cfd[jh] <= g[jh])
         mod.ext[:constraints][:cfd_installed_cap] = @constraint(mod, Q_cfd_gen <= C) # CfD contracted capacity cannot exceed installed capacity
 
     end    

@@ -52,8 +52,7 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
         #cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod, [jh in JH], (λ_EOM[jh] - λ_cfd) *  Q_cfd_con)
         cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * Q_cfd_con)
         cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_CfD/2 * (Q_cfd_con - Q_cfd_bar)^2)
-        #cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_CfD/2 * ((Q_cfd_con - Q_cfd_bar)/(Q_cfd_bar + 0.0001))^2)
-        
+
         # Redefine objective for CfD scenario
         objective_consumer = mod.ext[:expressions][:objective_generator] = @expression(mod,            
             - sum(λ_EOM[jh]*g[jh] for jh in JH)

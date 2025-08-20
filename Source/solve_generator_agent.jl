@@ -39,7 +39,6 @@ function solve_generator_agent!(mod::Model, market_design::AbstractString, m::St
         cfd_payout_gen = mod.ext[:expressions][:cfd_payout_gen] = @expression(mod, [jh in JH], (λ_cfd - λ_EOM[jh]) * g_cfd[jh]) 
         cfd_premium_gen = mod.ext[:expressions][:cfd_premium_gen] = @expression(mod, ζ_cfd * Q_cfd_gen)
         cfd_penalty_gen = mod.ext[:expressions][:cfd_penalty_gen] = @expression(mod, ρ_CfD/2 * (Q_cfd_gen - Q_cfd_bar)^2)
-        #cfd_penalty_gen = mod.ext[:expressions][:cfd_penalty_gen] = @expression(mod, ρ_CfD/2 * ((Q_cfd_gen - Q_cfd_bar)/(Q_cfd_bar + 0.0001))^2)
         
         # Redefine objective for CfD scenario
         objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
@@ -52,12 +51,9 @@ function solve_generator_agent!(mod::Model, market_design::AbstractString, m::St
             + cfd_penalty_gen
         )
         # CfD related constraints
-        mod.ext[:constraints][:g_cfd] = @constraint(mod, [jh in JH],
-        g_cfd[jh] <= AF[jh] * Q_cfd_gen
-        )
-        mod.ext[:constraints][:cfd_installed_cap] = @constraint(mod, 
-        Q_cfd_gen <= C
-        ) # CfD contracted capacity cannot exceed installed capacity
+        mod.ext[:constraints][:g_cfd] = @constraint(mod, [jh in JH], g_cfd[jh] <= AF[jh] * Q_cfd_gen)
+        mod.ext[:constraints][:gen_cfd] = @constraint(mod, [jh in JH], g_cfd[jh] <= g[jh])
+        mod.ext[:constraints][:cfd_installed_cap] = @constraint(mod, Q_cfd_gen <= C) # CfD contracted capacity cannot exceed installed capacity
     end
 
     mod.ext[:objective] = @objective(mod, Min, objective_generator) #re-register the updated objective in the JuMP model before calling the optimizer

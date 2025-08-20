@@ -42,8 +42,6 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
         # CfD variables
         Q_cfd_con = mod.ext[:variables][:Q_cfd_con] = @variable(mod, lower_bound=0, base_name="CfD_contracted_capacity") # CfD contracted capacity [MW]
 
-        #println("Q_cfd_con:", mod.ext[:variables][:Q_cfd_con])
-
         # CfD parameters
         λ_cfd = mod.ext[:parameters][:λ_cfd]  # €/MWh (strike price)
         ζ_cfd = mod.ext[:parameters][:ζ_cfd]  # €/MWh (CfD contract premium)
@@ -51,11 +49,6 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
         Q_cfd_bar = mod.ext[:parameters][:Q_cfd_bar] # Average CfD contracted capacity across all agents [MW]
         ρ_CfD = mod.ext[:parameters][:ρ_cfd] # rho-value in ADMM related to CfD auctions
         Q_cfd_con_tot = mod.ext[:parameters][:Q_cfd_con_tot] # Total CfD contracted capacity of all consumers, perhaps not working bc of the different iteration steps, consider using Q_cfd_gen_tot instead
-
-        #println("λ_cfd:", mod.ext[:parameters][:λ_cfd])
-        #println("g_cfd:", mod.ext[:parameters][:g_cfd])
-        #println("g_cfd_total:", mod.ext[:parameters][:g_cfd_total])
-        #println("Q_cfd_con_tot", mod.ext[:parameters][:Q_cfd_con_tot])
 
         # CfD expressions
         share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, Q_cfd_con / (Q_cfd_con_tot+0.00001)) # Adding a small value to avoid dividing by zero

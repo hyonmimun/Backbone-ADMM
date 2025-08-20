@@ -5,7 +5,7 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
     
     for iter in iterations
         if convergence == 0 # convergence not reached yet; loop continues solving
-            
+
             # Multi-threaded version
             @sync for m in agents[:all]
                 # created subroutine to allow multi-threading to solve agents' decision problems
@@ -15,7 +15,7 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
 
             # Imbalances
             @timeit TO "Compute imbalances" begin
-                push!(ADMM["Imbalances"]["EOM"], sum(results["g"][m][end] for m in agents[:eom]) - EOM["D"][:])
+                push!(ADMM["Imbalances"]["EOM"], sum(results["g"][m][end] for m in agents[:eom]) - (EOM["D"][:])) # subtract total fixed demand of all consumers and total elastic demand of all consumers!
                 
                 if market_design == "CfD"
                     push!(ADMM["Imbalances"]["CfD"], 
@@ -31,7 +31,7 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
                 push!(ADMM["Residuals"]["Primal"]["EOM"], sqrt(sum(ADMM["Imbalances"]["EOM"][end].^2)))
                 
                 if market_design == "CfD"
-                    push!(ADMM["Residuals"]["Primal"]["CfD"], sqrt(sum(ADMM["Imbalances"]["CfD"][end].^2))) # CfD primal residuals
+                    push!(ADMM["Residuals"]["Primal"]["CfD"], abs(ADMM["Imbalances"]["CfD"][end])) # CfD primal residuals
                 end
             end
 
@@ -40,10 +40,16 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
             if iter > 1
                 push!(ADMM["Residuals"]["Dual"]["EOM"], sqrt(sum(sum((ADMM["ρ"]["EOM"][end]*((results["g"][m][end]-sum(results["g"][mstar][end] for mstar in agents[:eom])./(EOM["nAgents"]+1)) - (results["g"][m][end-1]-sum(results["g"][mstar][end-1] for mstar in agents[:eom])./(EOM["nAgents"]+1)))).^2 for m in agents[:eom]))))
                 
-                if market_design == "CfD"    
-                    push!(ADMM["Residuals"]["Dual"]["CfD"], sqrt(sum(ADMM["ρ"]["CfD"][end]*((sum(results["Q_cfd_gen"][m][end] for m in agents[:Gen]) - sum(results["Q_cfd_con"][m][end] for m in agents[:Cons])) - (sum(results["Q_cfd_gen"][m][end-1] for m in agents[:Gen]) - sum(results["Q_cfd_con"][m][end-1] for m in agents[:Cons])))).^2)) # CfD dual residuals            
+                if market_design == "CfD"
+                    push!(ADMM["Residuals"]["Dual"]["CfD"], sqrt(
+                    sum((ADMM["ρ"]["CfD"][end] * (results["Q_cfd_gen"][m][end] - results["Q_cfd_gen"][m][end-1]))^2 for m in agents[:Gen]) +
+                    sum((ADMM["ρ"]["CfD"][end] * (results["Q_cfd_con"][m][end] - results["Q_cfd_con"][m][end-1]))^2 for m in agents[:Cons])
+                ))  # per agent L2 
+                    #=
+                    sqrt(sum(ADMM["ρ"]["CfD"][end]*((sum(results["Q_cfd_gen"][m][end] for m in agents[:Gen]) - 
+                    sum(results["Q_cfd_con"][m][end] for m in agents[:Cons])) - (sum(results["Q_cfd_gen"][m][end-1] for m in agents[:Gen]) - 
+                    sum(results["Q_cfd_con"][m][end-1] for m in agents[:Cons])))).^2)) # aggregate dual residuals =#           
                 end
-
             end
 
             # Price updates 

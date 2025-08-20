@@ -16,15 +16,16 @@ function save_results(mdict::Dict,EOM::Dict,ADMM::Dict,results::Dict,data::Dict,
     CSV.write(joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],"_EOM_",sens,".csv")), 
     DataFrame(mat_output,:auto), delim=";",header=["Timestep";"Price";string.("G_",agents[:eom]);"Demand"]);
 
-    # CfD
+    #= CfD
     if market_design == "CfD"
         gen_ids = agents[:Gen]
         cons_ids = agents[:Cons]
         n_iter = ADMM["n_iter"]
-        cfd_output = DataFrame(Iteration=Int[], AgentType = String[], Agent=String[], Q_cfd_agent=Float64[], cfd_payout_agent_total=Float64[], cfd_premium_agent=Float64[], cfd_penalty_agent=Float64[],ζ_cfd=Float64[], Q_cfd_bar=Float64[])
+        cfd_output = DataFrame(Iteration=Int[], AgentType = String[], Agent=String[], Capacity = Union{Missing, Float64}[], Q_cfd_agent=Float64[], cfd_payout_agent_total=Float64[], cfd_premium_agent=Float64[], cfd_penalty_agent=Float64[],ζ_cfd=Float64[], Q_cfd_bar=Float64[])
 
         iter = n_iter
             for m in gen_ids
+                Capacity = data["Generators"][m]["C"]
                 Q_cfd_gen = results["Q_cfd_gen"][m][end]
                 payout_vec = results["cfd_payout_gen"][m][end]
                 payout_total = sum(payout_vec)
@@ -37,6 +38,7 @@ function save_results(mdict::Dict,EOM::Dict,ADMM::Dict,results::Dict,data::Dict,
                     Iteration = iter,
                     AgentType = "Gen",
                     Agent = m,
+                    Capacity = Capacity,
                     Q_cfd_agent = Q_cfd_gen,
                     cfd_payout_agent_total = payout_total,
                     cfd_premium_agent = premium,
@@ -60,7 +62,8 @@ function save_results(mdict::Dict,EOM::Dict,ADMM::Dict,results::Dict,data::Dict,
                     Iteration = iter,
                     AgentType = "Cons",
                     Agent = m,
-                    Q_cfd_agent = Q_cfd_con,  # niet van toepassing voor consument
+                    Capacity = missing,
+                    Q_cfd_agent = Q_cfd_con,  
                     cfd_payout_agent_total = payout_total,
                     cfd_premium_agent = premium,
                     cfd_penalty_agent = penalty,
@@ -87,6 +90,7 @@ function save_results(mdict::Dict,EOM::Dict,ADMM::Dict,results::Dict,data::Dict,
                 payout_vec = results["cfd_payout_gen"][m][end]
 
                 for t in 1:length(g_cfd_vec)
+                    
                     push!(g_cfd_output, (
                         Iteration = iter,
                         Timestep = t,
@@ -98,6 +102,6 @@ function save_results(mdict::Dict,EOM::Dict,ADMM::Dict,results::Dict,data::Dict,
             end
 
         g_cfd_file = joinpath(home_dir, "Results", "Scenario_$(scenario_overview_row["scen_number"])_g_cfd_and_payout_per_iteration_$(sens).csv")
-        CSV.write(g_cfd_file, g_cfd_output, delim = ";")
-    end
+        CSV.write(g_cfd_file, g_cfd_output, delim = ";") 
+    end =#
 end
