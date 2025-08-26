@@ -20,10 +20,10 @@ const home_dir = @__DIR__
     # ENV["GUROBI_HOME"] = " "
 #end
 
-import Pkg
-Pkg.add("YAML")
-Pkg.add("ProgressBars")
-Pkg.add("ArgParse")
+#import Pkg
+#Pkg.add("YAML")
+#Pkg.add("ProgressBars")
+#Pkg.add("ArgParse")
 
 # Include packages 
 using JuMP, Gurobi # Optimization packages
@@ -61,7 +61,30 @@ include(joinpath(home_dir,"Source","save_results.jl"))
 
 # Data common to all scenarios data 
 data = YAML.load_file(joinpath(home_dir,"Input","config.yaml"))
-ts = CSV.read(joinpath(home_dir,"Input","timeseries.csv"),delim=";",DataFrame)
+#ts = CSV.read(joinpath(home_dir,"Input","timeseries.csv"),delim=";",DataFrame)
+
+ts = Dict()
+order_matrix = Dict()
+repr_days = Dict()
+years = Dict(1 => 2021) # deterministic
+#years = Dict(1 => 2017, 2 => 2018) # stochastic
+#years = Dict(1 => 2021, 2 => 20211) # validation stochastic
+#years = Dict(1 => 2017, 2 => 2018, 3 => 2019, 4 => 2020) # validation CVAR
+#= years = Dict(1 => "2017", 2 => "2017_Hhigh", 3 => "2017_Hlow", 4 => "2018", 5 => "2018_Hhigh", 6 => "2018_Hlow", 7 => "2019", 8 => "2019_Hhigh", 9 => "2019_Hlow", 
+10 => "2020", 11 => "2020_Hhigh", 12 => "2020_Hlow", 13 => "2021", 14 => "2021_Hhigh", 15 => "2021_Hlow", 16 => "2022", 17 => "2022_Hhigh", 18 => "2022_Hlow" ) =#
+
+for yr in keys(years)
+    ts[yr] = CSV.read(joinpath(home_dir, "Input", "timeseries", string("timeseries_", years[yr],"_mod", ".csv")), delim=",", DataFrame)
+    #order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]), "ordering_variable.csv"), delim=",", DataFrame)
+    order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", "output_2021", "ordering_variable.csv"), delim=",", DataFrame)
+    #repr_days[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]), "decision_variables_short.csv"), delim=",", DataFrame)
+    repr_days[yr] = CSV.read(joinpath(home_dir, "Input", "output_2021", "decision_variables_short.csv"), delim=",", DataFrame)
+end
+
+# Create folder for results
+if isdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_repr_days"))) != 1
+    mkdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_repr_days")))
+end
 
 # Overview scenarios
 scenario_overview = CSV.read(joinpath(home_dir,"overview_scenarios.csv"),DataFrame,delim=";")
@@ -78,7 +101,7 @@ if isdir(joinpath(home_dir,string("Results"))) != 1
     mkdir(joinpath(home_dir,string("Results")))
 end
 
-# Scenario number 
+#= Scenario number 
 if HPC == "DelftBlue"  
    function parse_commandline()
        s = ArgParseSettings()
@@ -93,7 +116,8 @@ if HPC == "DelftBlue"
                default = 1
        end
        return parse_args(s)
-   end
+   end 
+
    # Simulation number as argument:
    dict_sim_number =  parse_commandline()
    start_scen = dict_sim_number["start_scen"]
@@ -102,7 +126,7 @@ else
     # Range of scenarios to be simulated
     start_scen = 1
     stop_scen = 2
-end
+end =#
 
 scen_number = 1 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the scenario you'd like to study
 #for scen_number in range(start_scen, stop=stop_scen, step=1)
@@ -154,17 +178,17 @@ mdict = Dict(i => Model(optimizer_with_attributes(() -> Gurobi.Optimizer(GUROBI_
 ## 3. Define parameters for markets and representative agents
 # Parameters/variables EOM
 EOM = Dict()
-define_EOM_parameters!(EOM,data,ts,scenario_overview_row,market_design)
+define_EOM_parameters!(EOM,data,ts,scenario_overview_row,market_design,repr_days)
 results = Dict()
 
 # Consumer models
 for m in agents[:Cons]
-    define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row,market_design)                                  # Parameters common to all agents
+    define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row,market_design, repr_days)                                  # Parameters common to all agents
     define_consumer_parameters!(mdict[m],merge(data["General"],data["CfD"],data["Consumers"][m]),ts, market_design,results)                      # Consumers
 end
 # Generator models
 for m in agents[:Gen]
-    define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row, market_design)                                  # Parameters common to all agents
+    define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row, market_design, repr_days)                                  # Parameters common to all agents
     define_generator_parameters!(mdict[m],merge(data["General"],data["CfD"],data["Generators"][m]),ts, market_design)                      # Generators
 end
 

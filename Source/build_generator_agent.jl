@@ -1,6 +1,14 @@
 function build_generator_agent!(mod::Model, market_design::AbstractString)
     # Extract sets
+    JY = mod.ext[:sets][:JY]
+    JD = mod.ext[:sets][:JD]
     JH = mod.ext[:sets][:JH]
+
+    nY = data["nYears"]
+    nR = data["nReprDays"]
+    nT = data["nTimesteps"]
+
+    idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # get absolute timestep in repr days in year
 
     # Extract time series data
     AC = mod.ext[:timeseries][:AC] # Available capacity of the generator (MW)
@@ -15,14 +23,14 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
     ρ_EOM = mod.ext[:parameters][:ρ_EOM] # rho-value in ADMM related to EOM auctions
 
     # Create variables
-    g = mod.ext[:variables][:g] = @variable(mod, [jh=JH], lower_bound=0, base_name="generation")
+    g = mod.ext[:variables][:g] = @variable(mod, [jh=JH, jd=JD, jy=JY], lower_bound=0, base_name="generation")
     
     # Build objective expression
     objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
-        + sum(A/2*g[jh]^2 for jh in JH)
-        + sum(B*g[jh] for jh in JH)
-        - sum(λ_EOM[jh]*g[jh] for jh in JH) # minimizing total cost of energy generation
-        + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
+        + sum(A/2*g[jh, jd, jy]^2 for jh in JH, jd in JD, jy in JY)
+        + sum(B*g[jh, jd, jy] for jh in JH, jd in JD, jy in JY)
+        - sum(λ_EOM[jh, jd, jy]*g[jh, jd, jy] for jh in JH, jd in JD, jy in JY) # minimizing total cost of energy generation
+        + sum(ρ_EOM/2*(g[jh, jd, jy] - g_bar[jh, jd, jy])^2 for jh in JH, jd in JD, jy in JY)
     )
 
     if market_design == "CfD"

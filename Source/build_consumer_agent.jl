@@ -1,9 +1,17 @@
 function build_consumer_agent!(mod::Model,market_design::AbstractString)
     # Extract sets
+    JY = mod.ext[:sets][:JY]
+    JD = mod.ext[:sets][:JD]
     JH = mod.ext[:sets][:JH]
 
+    nY = data["General"]["nYears"]
+    nR = data["General"]["nReprDays"]
+    nT = data["General"]["nTimesteps"]
+
+    idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # get absolute timestep in repr days in year
+
     # Extract time series data
-    D = mod.ext[:timeseries][:D] 
+    D = mod.ext[:timeseries][:D]
     PV = mod.ext[:timeseries][:PV]
 
     # Extract parameters
@@ -23,20 +31,20 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     wwith = mod.ext[:parameters][:wwith] # Max discharging power
 
     # Create variables
-    g = mod.ext[:variables][:g] = @variable(mod, [jh=JH], base_name="generation")  # positive if consumer feeds power to the rest of the system, negative when taking power from the grid
-    D_ELA = mod.ext[:variables][:D_ELA] = @variable(mod, [jh=JH], lower_bound=0, base_name="elastic demand")
-    SOC = mod.ext[:variables][:SOC] = @variable(mod, [jh=JH], lower_bound=0, upper_bound = cap_smax, base_name="SOC") # state of charge battery
-    charge = mod.ext[:variables][:charge] = @variable(mod, [jh=JH], lower_bound=0, upper_bound= winj, base_name="charge")
-    discharge = mod.ext[:variables][:discharge] = @variable(mod, [jh=JH], lower_bound=0, upper_bound = wwith, base_name="discharge")
+    g = mod.ext[:variables][:g] = @variable(mod, [jh=JH, jd=JD, jy=JY], base_name="generation")  # positive if consumer feeds power to the rest of the system, negative when taking power from the grid
+    D_ELA = mod.ext[:variables][:D_ELA] = @variable(mod, [jh=JH, jd=JD, jy=JY], lower_bound=0, base_name="elastic demand")
+    SOC = mod.ext[:variables][:SOC] = @variable(mod, [jh=JH, jd=JD, jy=JY], lower_bound=0, upper_bound = cap_smax, base_name="SOC") # state of charge battery
+    charge = mod.ext[:variables][:charge] = @variable(mod, [jh=JH, jd=JD, jy=JY], lower_bound=0, upper_bound= winj, base_name="charge")
+    discharge = mod.ext[:variables][:discharge] = @variable(mod, [jh=JH, jd=JD, jy=JY], lower_bound=0, upper_bound = wwith, base_name="discharge")
 
     # Create affine expressions
-    utility_term = mod.ext[:expressions][:utility_term] = @expression(mod, [jh in JH], WTP * D_ELA[jh] - (WTP / (2 * D_ELA_max[jh])) * D_ELA[jh]^2)
-    
+    utility_term = mod.ext[:expressions][:utility_term] = @expression(mod, [jh=JH, jd=JD, jy=JY], WTP * D_ELA[jh,jd,jy] - (WTP / (2 * D_ELA_max[jh,jd,jy])) * D_ELA[jh,jd,jy]^2)
+ 
     # Build objective function
     objective_consumer = mod.ext[:expressions][:objective_generator] = @expression(mod,            
-        - sum(λ_EOM[jh]*g[jh] for jh in JH)
-        + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
-        - sum(utility_term[jh] for jh in JH))
+        - sum(λ_EOM[jh,jd,jy]*g[jh,jd,jy] for jh in JH, jd in JD, jy in JY)
+        + sum(ρ_EOM/2*(g[jh,jd,jy] - g_bar[jh,jd,jy])^2 for jh in JH, jd in JD, jy in JY)
+        - sum(utility_term[jh,jd,jy] for jh in JH, jd in JD, jy in JY))
 
     if market_design == "CfD"
         # CfD variables
@@ -74,26 +82,26 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     mod.ext[:objective] = @objective(mod, Min, objective_consumer)
     
     # Energy balance
-    mod.ext[:constraints][:energy_balance] = @constraint(mod, [jh in JH],
-    g[jh] == - D_fixed[jh] - D_ELA[jh] + PV[jh] - charge[jh] + discharge[jh]
+    mod.ext[:constraints][:energy_balance] = @constraint(mod, [jh in JH, jd in JD, jy in JY],
+    g[jh,jd,jy] == - D_fixed[jh,jd,jy] - D_ELA[jh,jd,jy] + PV[jh,jd,jy] - charge[jh,jd,jy] + discharge[jh,jd,jy]
     )
-    mod.ext[:constraints][:D_fixed] = @constraint(mod, [jh in JH],
-    D_fixed[jh] >= 0 # Fixed demand cannot be negative
+    mod.ext[:constraints][:D_fixed] = @constraint(mod, [jh in JH, jd in JD, jy in JY],
+    D_fixed[jh,jd,jy] >= 0 # Fixed demand cannot be negative
     )
-    mod.ext[:constraints][:D_ELA] = @constraint(mod, [jh in JH],
-    D_ELA[jh] <= D_ELA_max[jh] # Fixed demand cannot be negative
+    mod.ext[:constraints][:D_ELA] = @constraint(mod, [jh in JH, jd in JD, jy in JY],
+    D_ELA[jh,jd,jy] <= D_ELA_max[jh,jd,jy] # Fixed demand cannot be negative
     )
 
     # Battery model 
-    mod.ext[:constraints][:state_of_charge] = @constraint(mod, [t in 2:length(JH)],
-    SOC[JH[t]] == SOC[JH[t-1]] * Decay + charge[JH[t-1]] * EC - discharge[JH[t-1]] / ED
+    mod.ext[:constraints][:state_of_charge] = @constraint(mod, [jy in JY,jd in JD,jh in JH[2:end]],
+    SOC[jh,jd,jy] == SOC[jh-1,jd,jy]* Decay + charge[jh-1,jd,jy] * EC - discharge[jh-1,jd,jy] / ED
     )
-    mod.ext[:constraints][:initial_SOC] = @constraint(mod, SOC[JH[1]] == 0
+    mod.ext[:constraints][:initial_SOC] =
+    @constraint(mod, [jy in JY, jd in JD], SOC[1,jd,jy] == SOC_init[jd,jy]
     )
-    mod.ext[:constraints][:discharge] = @constraint(mod, [jh in JH],
-        discharge[jh] <= SOC[jh] # Discharge cannot exceed state of charge adjusted for efficiency
+    mod.ext[:constraints][:discharge] = @constraint(mod, [jh in JH, jd in JD, jy in JY],
+        discharge[jh,jd,jy] <= SOC[jh,jd,jy] # Discharge cannot exceed state of charge adjusted for efficiency
     )
-
     #mod.ext[:constraints][:PV_battery_charge] = @constraint(mod, [jh in JH], charge[jh] <= PV[jh]) # Battery can only charge from PV production 
 
     # find peak 

@@ -4,6 +4,8 @@ using CSV
 using Statistics
 using Plots
 
+const home_dir = @__DIR__
+
 scenario = 2
 variant  = "CfD"  # of wat je opgeslagen hebt
 jld_path = joinpath("Results", "Scenario_$(scenario).jld2")

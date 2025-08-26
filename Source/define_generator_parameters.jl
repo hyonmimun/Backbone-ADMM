@@ -1,4 +1,9 @@
-function define_generator_parameters!(mod::Model, data::Dict,ts::DataFrame, market_design::AbstractString)
+function define_generator_parameters!(mod::Model, data::Dict,ts::Dict, market_design::AbstractString)
+    nT = data["nTimesteps"]
+    nR = data["nReprDays"]
+    nY = data["nYears"]
+    idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # get absolute timestep in repr days in year
+    
     # Parameters 
     mod.ext[:parameters][:A] = data["a"]
     mod.ext[:parameters][:B] = data["b"]
@@ -6,11 +11,13 @@ function define_generator_parameters!(mod::Model, data::Dict,ts::DataFrame, mark
     
     # Availability factors
     if haskey(data,"AF")
-        mod.ext[:timeseries][:AF] = ts[!, data["AF"]]  # e.g., ts[!, "WIND_ONSHORE"]
-        mod.ext[:timeseries][:AC] = data["C"]*ts[!,data["AF"]]  
+        availability_factor = [ts[jy][!,Symbol(data["AF"])][idx(jy,jd,jh)] for jh=1:nT, jd=1:nR, jy=1:nY]
+        # e.g., ts[!, "WIND_ONSHORE"]
+        mod.ext[:timeseries][:AF] = availability_factor
+        mod.ext[:timeseries][:AC] = data["C"].*availability_factor
     else
-        mod.ext[:timeseries][:AF] = ones(data["nTimesteps"])  # Full availability (100%)
-        mod.ext[:timeseries][:AC] = data["C"]*ones(data["nTimesteps"]) # C in config.yaml (data) is the capacity of the generator
+        mod.ext[:timeseries][:AF] = ones(nT*nR*nY)  # Full availability (100%)
+        mod.ext[:timeseries][:AC] = data["C"]*ones(nT*nR*nY) # C in config.yaml (data) is the capacity of the generator
     end
     
     #CfD parameters
