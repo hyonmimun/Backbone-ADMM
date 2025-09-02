@@ -1,24 +1,34 @@
 function define_results!(data::Dict,results::Dict,ADMM::Dict,agents::Dict,market_design::AbstractString) 
+    # Sets
+   #= mod.ext[:sets][:JY] = 1:data["nYears"]
+    mod.ext[:sets][:JD] = 1:data["nReprDays"]
+    mod.ext[:sets][:JH] = 1:data["nTimesteps"] =#
+
+    nT = data["nTimesteps"]
+    nR = data["nReprDays"]
+    nY = data["nYears"]
+    idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh
+    
     results["g"] = Dict()
     for m in agents[:eom]
-        results["g"][m] = CircularBuffer{Array{Float64,1}}(data["CircularBufferSize"]) 
-        push!(results["g"][m],zeros(data["nTimesteps"]))
+        results["g"][m] = CircularBuffer{Array{Float64,3}}(data["CircularBufferSize"]) 
+        push!(results["g"][m],zeros(nT,nR,nY))
     end
 
         results["D_ELA"] = Dict()
     for m in agents[:Cons]
-        results["D_ELA"][m] = CircularBuffer{Array{Float64,1}}(data["CircularBufferSize"]) 
-        push!(results["D_ELA"][m],zeros(data["nTimesteps"]))
+        results["D_ELA"][m] = CircularBuffer{Array{Float64,3}}(data["CircularBufferSize"]) 
+        push!(results["D_ELA"][m],zeros(nT,nR,nY))
     end
 
     results["λ"] = Dict()
-    results[ "λ"]["EOM"] = CircularBuffer{Array{Float64,1}}(data["CircularBufferSize"]) 
-    push!(results[ "λ"]["EOM"],zeros(data["nTimesteps"]))
+    results[ "λ"]["EOM"] = CircularBuffer{Array{Float64,3}}(data["CircularBufferSize"]) 
+    push!(results[ "λ"]["EOM"],zeros(nT,nR,nY))
    
     ADMM["Imbalances"] = Dict()
-    ADMM["Imbalances"]["EOM"] = CircularBuffer{Array{Float64,1}}(data["CircularBufferSize"])
-    push!(ADMM["Imbalances"]["EOM"],zeros(data["nTimesteps"]))
-  
+    ADMM["Imbalances"]["EOM"] = CircularBuffer{Array{Float64,3}}(data["CircularBufferSize"])
+    push!(ADMM["Imbalances"]["EOM"],zeros(nT,nR,nY))
+    
     ADMM["Residuals"] = Dict()
     ADMM["Residuals"]["Primal"] = Dict()
     ADMM["Residuals"]["Primal"]["EOM"] = CircularBuffer{Float64}(data["CircularBufferSize"])

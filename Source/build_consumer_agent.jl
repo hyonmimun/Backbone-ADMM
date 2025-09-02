@@ -29,6 +29,7 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     Decay = mod.ext[:parameters][:Decay] # Hourly decay
     winj = mod.ext[:parameters][:winj] # Max charging power
     wwith = mod.ext[:parameters][:wwith] # Max discharging power
+    #SOC_init = mod.ext[:parameters][:SOC_init] # initial SOC
 
     # Create variables
     g = mod.ext[:variables][:g] = @variable(mod, [jh=JH, jd=JD, jy=JY], base_name="generation")  # positive if consumer feeds power to the rest of the system, negative when taking power from the grid
@@ -41,7 +42,7 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     utility_term = mod.ext[:expressions][:utility_term] = @expression(mod, [jh=JH, jd=JD, jy=JY], WTP * D_ELA[jh,jd,jy] - (WTP / (2 * D_ELA_max[jh,jd,jy])) * D_ELA[jh,jd,jy]^2)
  
     # Build objective function
-    objective_consumer = mod.ext[:expressions][:objective_generator] = @expression(mod,            
+    objective_consumer = mod.ext[:expressions][:objective_consumer] = @expression(mod,            
         - sum(λ_EOM[jh,jd,jy]*g[jh,jd,jy] for jh in JH, jd in JD, jy in JY)
         + sum(ρ_EOM/2*(g[jh,jd,jy] - g_bar[jh,jd,jy])^2 for jh in JH, jd in JD, jy in JY)
         - sum(utility_term[jh,jd,jy] for jh in JH, jd in JD, jy in JY))
@@ -66,7 +67,7 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
         #cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_CfD/2 * ((Q_cfd_con - Q_cfd_bar)/(Q_cfd_bar + 0.0001))^2) #coordination device
         
         # Redefine objective for CfD scenario
-        objective_consumer = mod.ext[:expressions][:objective_generator] = @expression(mod,            
+        objective_consumer = mod.ext[:expressions][:objective_consumer] = @expression(mod,            
             - sum(λ_EOM[jh]*g[jh] for jh in JH)
             + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
             - sum(utility_term[jh] for jh in JH)
@@ -96,15 +97,21 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     mod.ext[:constraints][:state_of_charge] = @constraint(mod, [jy in JY,jd in JD,jh in JH[2:end]],
     SOC[jh,jd,jy] == SOC[jh-1,jd,jy]* Decay + charge[jh-1,jd,jy] * EC - discharge[jh-1,jd,jy] / ED
     )
-    mod.ext[:constraints][:initial_SOC] =
-    @constraint(mod, [jy in JY, jd in JD], SOC[1,jd,jy] == SOC_init[jd,jy]
+    mod.ext[:constraints][:initial_SOC] = @constraint(mod, [jy in JY, jd in JD], SOC[1,jd,jy] == 0.0)
+    #mod.ext[:constraints][:initial_SOC] = @constraint(mod, [jy in JY, jd in JD], SOC[1,jd,jy] == SOC_init)
+    
+    # at end timestep the SOC is equal to the initital SOC
+    mod.ext[:constraints][:end_SOC] =
+    @constraint(mod, [jy in JY, jd in JD], SOC[end,jd,jy] == 0
     )
+
     mod.ext[:constraints][:discharge] = @constraint(mod, [jh in JH, jd in JD, jy in JY],
-        discharge[jh,jd,jy] <= SOC[jh,jd,jy] # Discharge cannot exceed state of charge adjusted for efficiency
+    discharge[jh,jd,jy] <= SOC[jh,jd,jy] # Discharge cannot exceed state of charge adjusted for efficiency
     )
+
     #mod.ext[:constraints][:PV_battery_charge] = @constraint(mod, [jh in JH], charge[jh] <= PV[jh]) # Battery can only charge from PV production 
 
-    # find peak 
+    # find peak
     # peak greater than g[jh]
     # peak greather than 0
 

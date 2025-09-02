@@ -1,7 +1,15 @@
 function solve_generator_agent!(mod::Model, market_design::AbstractString, m::String)
 # Solves the model during each ADMM iteration with updated parameters. Only add full constraints and expressions that include parameters that are updated with each iteration
     # Extract sets
+    JY = mod.ext[:sets][:JY]
+    JD = mod.ext[:sets][:JD]
     JH = mod.ext[:sets][:JH]
+
+    nY = data["General"]["nYears"]
+    nR = data["General"]["nReprDays"]
+    nT = data["General"]["nTimesteps"]
+
+    idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # get absolute timestep in repr days in year
 
     # Extract time series data
     AC = mod.ext[:timeseries][:AC] # Available capacity of the generator (MW)
@@ -17,12 +25,22 @@ function solve_generator_agent!(mod::Model, market_design::AbstractString, m::St
 
     # Create variables
     g = mod.ext[:variables][:g]
+
+    #= println("== generator shapes ==")
+    for (nm, x) in pairs(mod.ext[:parameters])
+        x isa AbstractArray && println(nm, " ndims=", ndims(x), " size=", size(x))
+    end
+    for (nm, x) in pairs(mod.ext[:timeseries])
+        x isa AbstractArray && println(nm, " ndims=", ndims(x), " size=", size(x))
+    end =#
     
+    # Build objective expression
     objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
-        + sum(A/2*g[jh]^2 for jh in JH)
-        + sum(B*g[jh] for jh in JH)
-        - sum(λ_EOM[jh]*g[jh] for jh in JH) #minimizing total cost of energy generation
-        + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH))
+        + sum(A/2*g[jh, jd, jy]^2 for jh in JH, jd in JD, jy in JY)
+        + sum(B*g[jh, jd, jy] for jh in JH, jd in JD, jy in JY)
+        - sum(λ_EOM[jh, jd, jy]*g[jh, jd, jy] for jh in JH, jd in JD, jy in JY) # minimizing total cost of energy generation
+        + sum(ρ_EOM/2*(g[jh, jd, jy] - g_bar[jh, jd, jy])^2 for jh in JH, jd in JD, jy in JY)
+    )
 
     if market_design == "CfD"
         # CfD variables

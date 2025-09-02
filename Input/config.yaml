@@ -2,12 +2,12 @@ General:
   nTimesteps: 24 # number of timesteps per representative day
   nReprDays: 8 # days
   nDays: 365 # days
-  nYears: 1 # years
+  nYears: 3 # years
   totConsumers: 1000000 # 1 million consumers
 
 ADMM:
  rho_EOM: 1 # rho ADMM penalty term, EOM 
- max_iter: 400 # maximum number of iterations
+ max_iter: 4 # maximum number of iterations
  epsilon: 0.1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
  CircularBufferSize: 20 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
 
@@ -30,6 +30,7 @@ Consumers: # Set of representative consumers
     Decay: 0.9999
     winj: 0.1
     wwith: 0.1
+    #SOC_init: 5
 
   TypeB: 
    Share: 0.5  # Share of consumers in overall consumer mix
@@ -44,6 +45,7 @@ Consumers: # Set of representative consumers
     Decay: 0.9999
     winj: 0.1
     wwith: 0.1
+    #SOC_init: 5
 
   TypeC: 
    Share: 0.25  # Share of consumers in overall consumer mix
@@ -58,6 +60,7 @@ Consumers: # Set of representative consumers
     Decay: 0.9999
     winj: 0.1
     wwith: 0.1
+    #SOC_init: 5
 
 Generators: 
   # OPEX are parametrized as a/2 x g^2 + b x g 

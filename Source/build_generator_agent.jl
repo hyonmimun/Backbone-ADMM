@@ -4,9 +4,9 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
     JD = mod.ext[:sets][:JD]
     JH = mod.ext[:sets][:JH]
 
-    nY = data["nYears"]
-    nR = data["nReprDays"]
-    nT = data["nTimesteps"]
+    nY = data["General"]["nYears"]
+    nR = data["General"]["nReprDays"]
+    nT = data["General"]["nTimesteps"]
 
     idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # get absolute timestep in repr days in year
 
@@ -71,8 +71,8 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
     
     mod.ext[:objective] = @objective(mod, Min, objective_generator)
     
-    mod.ext[:constraints][:cap_limit] = @constraint(mod, [jh=JH],
-        g[jh] <=  AC[jh]
+    mod.ext[:constraints][:cap_limit] = @constraint(mod, [jh in JH, jd in JD, jy in JY],
+        g[jh,jd,jy] <=  AC[jh,jd,jy]
         )
     return mod
 end

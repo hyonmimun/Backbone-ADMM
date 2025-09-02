@@ -66,19 +66,19 @@ data = YAML.load_file(joinpath(home_dir,"Input","config.yaml"))
 ts = Dict()
 order_matrix = Dict()
 repr_days = Dict()
-years = Dict(1 => 2021) # deterministic
-#years = Dict(1 => 2017, 2 => 2018) # stochastic
+#years = Dict(1 => 2021) # deterministic
+#years = Dict(1 => 2021, 2 => 2022) # stochastic
 #years = Dict(1 => 2021, 2 => 20211) # validation stochastic
-#years = Dict(1 => 2017, 2 => 2018, 3 => 2019, 4 => 2020) # validation CVAR
+years = Dict(1 => 2018, 2 => 2021, 3 => 2022) # validation CVAR
 #= years = Dict(1 => "2017", 2 => "2017_Hhigh", 3 => "2017_Hlow", 4 => "2018", 5 => "2018_Hhigh", 6 => "2018_Hlow", 7 => "2019", 8 => "2019_Hhigh", 9 => "2019_Hlow", 
 10 => "2020", 11 => "2020_Hhigh", 12 => "2020_Hlow", 13 => "2021", 14 => "2021_Hhigh", 15 => "2021_Hlow", 16 => "2022", 17 => "2022_Hhigh", 18 => "2022_Hlow" ) =#
 
 for yr in keys(years)
     ts[yr] = CSV.read(joinpath(home_dir, "Input", "timeseries", string("timeseries_", years[yr],"_mod", ".csv")), delim=",", DataFrame)
-    #order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]), "ordering_variable.csv"), delim=",", DataFrame)
-    order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", "output_2021", "ordering_variable.csv"), delim=",", DataFrame)
-    #repr_days[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]), "decision_variables_short.csv"), delim=",", DataFrame)
-    repr_days[yr] = CSV.read(joinpath(home_dir, "Input", "output_2021", "decision_variables_short.csv"), delim=",", DataFrame)
+    order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]),string("ordering_variable_",years[yr],".csv")), delim=",", DataFrame)
+    #order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", "output_2021", "ordering_variable.csv"), delim=",", DataFrame)
+    repr_days[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]), string("decision_variables_short_",years[yr],".csv")), delim=",", DataFrame)
+    #repr_days[yr] = CSV.read(joinpath(home_dir, "Input", "output_2021", "decision_variables_short.csv"), delim=",", DataFrame)
 end
 
 # Create folder for results
@@ -145,7 +145,7 @@ if scenario_overview_row["Sens_analysis"] == "YES"
     numb_of_sens = length((sensitivity_overview[!,:Parameter]))
 else
     numb_of_sens = 0 
-end  
+end
 
 # Sensitivity analysis
 sens_number = 1 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the sensitivity you'd like to study

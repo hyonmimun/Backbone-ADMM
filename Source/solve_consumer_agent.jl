@@ -1,6 +1,15 @@
 function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::String)
    # Extract sets
+   JY = mod.ext[:sets][:JY]
+   JD = mod.ext[:sets][:JD] 
    JH = mod.ext[:sets][:JH]
+
+   nY = data["General"]["nYears"]
+   nR = data["General"]["nReprDays"]
+   nT = data["General"]["nTimesteps"]
+
+   idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # get absolute timestep in repr days in year
+   
    PV = mod.ext[:timeseries][:PV]
    D = mod.ext[:timeseries][:D]
 
@@ -16,23 +25,25 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
    EC = mod.ext[:parameters][:EC] # Charging efficiency
    ED = mod.ext[:parameters][:ED] # Discharging efficiency
    Decay = mod.ext[:parameters][:Decay] # Hourly decay
+   winj = mod.ext[:parameters][:winj] # Max charging power
+   wwith = mod.ext[:parameters][:wwith] # Max discharging power
 
    # Create variables
-   g = mod.ext[:variables][:g]  
+   g = mod.ext[:variables][:g]
    D_ELA = mod.ext[:variables][:D_ELA]
    charge = mod.ext[:variables][:charge]
    discharge = mod.ext[:variables][:discharge]
    SOC = mod.ext[:variables][:SOC]
 
    # Create affine expressions
-   utility_term = mod.ext[:expressions][:utility_term] = @expression(mod, [jh in JH], WTP * D_ELA[jh] - (WTP / (2 * D_ELA_max[jh])) * D_ELA[jh]^2) 
+   utility_term = mod.ext[:expressions][:utility_term] = @expression(mod, [jh=JH, jd=JD, jy=JY], WTP * D_ELA[jh,jd,jy] - (WTP / (2 * D_ELA_max[jh,jd,jy])) * D_ELA[jh,jd,jy]^2)
    # Redefine utility_term expression since parameters are udpated each iteration (D_ELA_max comes from time-varying demand profile)
    
    # Build objective function
-   objective_consumer = mod.ext[:expressions][:objective_generator] = @expression(mod,            
-        - sum(λ_EOM[jh]*g[jh] for jh in JH)
-        + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
-        - sum(utility_term[jh] for jh in JH))
+    objective_consumer = mod.ext[:expressions][:objective_consumer] = @expression(mod,            
+        - sum(λ_EOM[jh,jd,jy]*g[jh,jd,jy] for jh in JH, jd in JD, jy in JY)
+        + sum(ρ_EOM/2*(g[jh,jd,jy] - g_bar[jh,jd,jy])^2 for jh in JH, jd in JD, jy in JY)
+        - sum(utility_term[jh,jd,jy] for jh in JH, jd in JD, jy in JY))
 
    if market_design == "CfD"    
         # CfD variables
@@ -54,7 +65,7 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
         cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_CfD/2 * (Q_cfd_con - Q_cfd_bar)^2)
 
         # Redefine objective for CfD scenario
-        objective_consumer = mod.ext[:expressions][:objective_generator] = @expression(mod,            
+        objective_consumer = mod.ext[:expressions][:objective_consumer] = @expression(mod,            
             - sum(λ_EOM[jh]*g[jh] for jh in JH)
             + sum(ρ_EOM/2*(g[jh] - g_bar[jh])^2 for jh in JH)
             - sum(utility_term[jh] for jh in JH)
@@ -73,8 +84,8 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
     end
 
     # Redefine energy balance
-    mod.ext[:constraints][:energy_balance] = @constraint(mod, [jh in JH],
-    g[jh] == - D_fixed[jh] - D_ELA[jh] + PV[jh] - charge[jh] + discharge[jh]
+    mod.ext[:constraints][:energy_balance] = @constraint(mod, [jh in JH, jd in JD, jy in JY],
+    g[jh,jd,jy] == - D_fixed[jh,jd,jy] - D_ELA[jh,jd,jy] + PV[jh,jd,jy] - charge[jh,jd,jy] + discharge[jh,jd,jy]
     )
 
    optimize!(mod)

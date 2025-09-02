@@ -16,8 +16,8 @@ function define_generator_parameters!(mod::Model, data::Dict,ts::Dict, market_de
         mod.ext[:timeseries][:AF] = availability_factor
         mod.ext[:timeseries][:AC] = data["C"].*availability_factor
     else
-        mod.ext[:timeseries][:AF] = ones(nT*nR*nY)  # Full availability (100%)
-        mod.ext[:timeseries][:AC] = data["C"]*ones(nT*nR*nY) # C in config.yaml (data) is the capacity of the generator
+        mod.ext[:timeseries][:AF] = ones(nT,nR,nY)  # Full availability (100%)
+        mod.ext[:timeseries][:AC] = data["C"]*ones(nT,nR,nY) # C in config.yaml (data) is the capacity of the generator
     end
     
     #CfD parameters

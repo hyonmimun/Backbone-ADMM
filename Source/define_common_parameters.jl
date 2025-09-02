@@ -28,6 +28,14 @@ function define_common_parameters!(m::String,mod::Model, data::Dict, ts::Dict, a
     mod.ext[:parameters][:g_bar] = zeros(nT,nR,nY)   # ADMM penalty term
     mod.ext[:parameters][:ρ_EOM] = data["ADMM"]["rho_EOM"]
 
+    #= println("== generator shapes ==")
+    for (nm, x) in pairs(mod.ext[:parameters])
+        x isa AbstractArray && println(nm, " ndims=", ndims(x), " size=", size(x))
+    end
+    for (nm, x) in pairs(mod.ext[:timeseries])
+        x isa AbstractArray && println(nm, " ndims=", ndims(x), " size=", size(x))
+    end =#
+
     if market_design == "CfD"
     # Parameters related to the CfD
         mod.ext[:parameters][:ζ_cfd] = 0.0 # CfD premium

@@ -15,7 +15,7 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
 
             # Imbalances
             @timeit TO "Compute imbalances" begin
-                push!(ADMM["Imbalances"]["EOM"], sum(results["g"][m][end] for m in agents[:eom]) - (EOM["D"][:])) # subtract total fixed demand of all consumers and total elastic demand of all consumers!
+                push!(ADMM["Imbalances"]["EOM"], sum(results["g"][m][end] for m in agents[:eom]) - (EOM["D"])) # subtract total fixed demand of all consumers and total elastic demand of all consumers!
                 
                 if market_design == "CfD"
                     push!(ADMM["Imbalances"]["CfD"], 

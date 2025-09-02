@@ -14,7 +14,8 @@ function define_consumer_parameters!(mod::Model, data::Dict, ts::Dict, market_de
     
     D_system = [ts[jy][!,:LOAD][idx(jy,jd,jh)] for jh=1:nT, jd=1:nR, jy=1:nY]
     
-    base_demand = D_profile .* D_system # total demand of the consumer segment based on system load
+    base_demand = D_profile .* D_system # wrong
+    
     
     mod.ext[:timeseries][:D_profile] = D_profile
     mod.ext[:timeseries][:PV] = D_PV
@@ -34,6 +35,7 @@ function define_consumer_parameters!(mod::Model, data::Dict, ts::Dict, market_de
     mod.ext[:parameters][:Decay] = data["Battery"]["Decay"]  # Hourly decay
     mod.ext[:parameters][:winj] = data["Battery"]["winj"]  # Max charging power
     mod.ext[:parameters][:wwith] = data["Battery"]["wwith"]  # Max discharging power
+    #mod.ext[:parameters][:SOC_init] = data["Battery"]["SOC_init"]
 
     if market_design == "CfD"
         # CfD parameters
