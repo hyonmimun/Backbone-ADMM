@@ -1,8 +1,8 @@
 scen_number;market_design;scen_ts;;Sens_analysis;remarks
-1;EOM;augmented;;NO;
+1;EOM;base;;NO;
 2;EOM;high;;NO;
 3;EOM;low;;NO;
-4;cfd;augmented;NO;NO;
+4;cfd;base;NO;NO;
 5;cfd;high;NO;NO;
 6;cfd;low;NO;NO;
 

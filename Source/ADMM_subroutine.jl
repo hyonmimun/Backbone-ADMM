@@ -1,13 +1,4 @@
 function ADMM_subroutine!(m::String,results::Dict,ADMM::Dict,EOM::Dict,mod::Model,agents::Dict,TO::TimerOutput,market_design:: AbstractString)
-    # Extract sets
-    JY = mod.ext[:sets][:JY]
-    JD = mod.ext[:sets][:JD]
-    JH = mod.ext[:sets][:JH]
-
-    nY = data["General"]["nYears"]
-    nR = data["General"]["nReprDays"]
-    nT = data["General"]["nTimesteps"]
-
     TO_local = TimerOutput()
     
     # Calculate penalty terms ADMM and update price to most recent value 
@@ -75,7 +66,7 @@ function ADMM_subroutine!(m::String,results::Dict,ADMM::Dict,EOM::Dict,mod::Mode
                 push!(results["generator_penalty"][m], collect(value.(mod.ext[:expressions][:generator_penalty])))
                 push!(results["exp_gen_prof"][m], collect(value.(mod.ext[:expressions][:exp_gen_prof])))
                 push!(results["generator_var"][m], collect(value.(mod.ext[:expressions][:generator_var])))
-                push!(results["mv_generator"][m], collect(value.(mod.ext[:expressions][:mv_generator])))
+                push!(results["generator_mv"][m], collect(value.(mod.ext[:expressions][:generator_mv])))
             end =#
 
             if market_design == "cfd"

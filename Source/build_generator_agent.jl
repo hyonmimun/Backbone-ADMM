@@ -37,13 +37,13 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
     # Risk aversion
     exp_gen_prof = mod.ext[:expressions][:exp_gen_prof] = @expression(mod, sum(P[jy]*generator_profit[jy] for jy in JY))
     generator_var = mod.ext[:expressions][:generator_var] = @expression(mod, sum(P[jy]* (generator_profit[jy] - exp_gen_prof)^2 for jy in JY))
-    mv_generator = mod.ext[:expressions][:mv_generator] = @expression(mod, β * generator_var) 
+    generator_mv = mod.ext[:expressions][:generator_mv] = @expression(mod, β * generator_var) 
 
     # Build objective expression (over all years)
     objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
         - sum(P[jy]*generator_profit[jy] for jy in JY) # minimizing total cost of energy generation
         + sum(P[jy]*generator_penalty[jy] for jy in JY)
-        + mv_generator
+        + generator_mv
     )
 
     if market_design == "cfd"

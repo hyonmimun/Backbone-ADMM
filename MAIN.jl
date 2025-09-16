@@ -138,13 +138,13 @@ end
 # Create file with results 
 # add column for sensitivity analysis
 if isfile(joinpath(home_dir,string("overview_results.csv"))) != 1
-    CSV.write(joinpath(home_dir,string("overview_results.csv")),DataFrame(),delim=";",header=["scen_number";"scen_ts";"sensitivity";"n_iter";"walltime";"PrimalResidual_EOM"; "DualResidual_EOM"])
+    CSV.write(joinpath(home_dir,string("overview_results.csv")),DataFrame(),delim=";",header=["scen_number";"sensitivity";"n_iter";"walltime";"PrimalResidual_EOM"; "DualResidual_EOM"])
 end
 
 # Create folder for results
 if isdir(joinpath(home_dir,string("Results"))) != 1
     mkdir(joinpath(home_dir,string("Results")))
-end
+end 
 
 data = YAML.load_file(joinpath(home_dir,"Input","config.yaml")) # reload data to avoid previous sensitivity analysis affected data
 

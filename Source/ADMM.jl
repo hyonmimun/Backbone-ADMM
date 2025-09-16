@@ -6,6 +6,11 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
     nY = data["General"]["nYears"]
     nR = data["General"]["nReprDays"]
     nT = data["General"]["nTimesteps"]
+
+    results_dir = joinpath(home_dir,string("Results_", data["General"]["nReprDays"], "_repr_days"))
+    out_dir = joinpath(results_dir, String(market_design))
+    logpath = joinpath(out_dir, string(scen_ts, "_", market_design, "_ADMM_residuals_all.csv"))
+    isfile(logpath) && rm(logpath)   # verwijder bestand als het al bestaat
     
     for iter in iterations
         if convergence == 0 # convergence not reached yet; loop continues solving
@@ -113,17 +118,13 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
             end
 
             # ADMM convergence results
-            results_dir = joinpath(home_dir,string("Results_", data["General"]["nReprDays"], "_repr_days"))
-            out_dir = joinpath(results_dir, String(market_design))
-            logpath = joinpath(out_dir, string(scen_ts, "_", market_design, "_ADMM_residuals_all.csv"))
-
-            row = DataFrame(scen_number     = [scenario_overview_row["scen_number"]], iteration = [ADMM["n_iter"]],primal_residual = [ADMM["Residuals"]["Primal"]["EOM"][end]], dual_residual   = [ADMM["Residuals"]["Dual"]["EOM"][end]])
+            row = DataFrame(scen_number = [scenario_overview_row["scen_number"]], iteration = [ADMM["n_iter"]], primal_residual = [ADMM["Residuals"]["Primal"]["EOM"][end]], dual_residual = [ADMM["Residuals"]["Dual"]["EOM"][end]])
                 
             if market_design == "cfd"
                     push!(row, DataFrame(cfd_primal = [ADMM["Residuals"]["Primal"]["cfd"][end]], cfd_dual = [ADMM["Residuals"]["Dual"]["cfd"][end]]; cols = :union))
                 end
             # schrijf/append: bij eerste keer wordt header geschreven, daarna alleen rijen
-            CSV.write(logpath, row; append=isfile(logpath))
+            CSV.write(logpath, row; append=isfile(logpath), delim=";")
             
             # Check convergence: primal and dual satisfy tolerance 
             if market_design == "EOM"

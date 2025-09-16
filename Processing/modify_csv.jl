@@ -1,8 +1,8 @@
 using CSV, DataFrames, Dates, Statistics
-year = 2021
+year = 2018
 # ========= IN/OUT =========
 input_path  = joinpath("Input","timeseries","$(year)", "timeseries_$(year).csv")
-output_path = joinpath("Input","timeseries","$(year)","timeseries_$(year)_augmented.csv")
+output_path = joinpath("Input","timeseries","$(year)","timeseries_$(year)_low.csv")
 
 # Kolomnamen in jouw CSV
 col_timestamp   = :times          # je timestampkolom
