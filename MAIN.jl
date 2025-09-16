@@ -25,6 +25,12 @@ const home_dir = @__DIR__
 #Pkg.add("ProgressBars")
 #Pkg.add("ArgParse")
 
+ENV["GUROBI_HOME"] = raw"C:\Users\<jouwnaam>\Miniconda3\envs\gurobi_env"
+ENV["PATH"] = ENV["GUROBI_HOME"] * "\\Library\\bin;" * ENV["PATH"]
+
+#using Pkg
+#Pkg.add("Plots")
+
 # Include packages 
 using JuMP, Gurobi # Optimization packages
 using DataFrames, CSV, YAML, DataStructures # dataprocessing
@@ -34,6 +40,7 @@ using Base.Threads: @spawn
 using Base: split
 using ArgParse # Parsing arguments from the command line
 using JLD2 # save workspace
+using Plots
 
 # Gurobi environment to suppress output
 println("Define Gurobi environment...")
@@ -58,48 +65,11 @@ include(joinpath(home_dir,"Source","solve_consumer_agent.jl"))
 include(joinpath(home_dir,"Source","solve_generator_agent.jl"))
 include(joinpath(home_dir,"Source","update_rho.jl"))
 include(joinpath(home_dir,"Source","save_results.jl"))
-
-# Data common to all scenarios data 
-data = YAML.load_file(joinpath(home_dir,"Input","config.yaml"))
-#ts = CSV.read(joinpath(home_dir,"Input","timeseries.csv"),delim=";",DataFrame)
-
-ts = Dict()
-order_matrix = Dict()
-repr_days = Dict()
-#years = Dict(1 => 2021) # deterministic
-#years = Dict(1 => 2021, 2 => 2022) # stochastic
-#years = Dict(1 => 2021, 2 => 20211) # validation stochastic
-years = Dict(1 => 2018, 2 => 2021, 3 => 2022) # validation CVAR
-#= years = Dict(1 => "2017", 2 => "2017_Hhigh", 3 => "2017_Hlow", 4 => "2018", 5 => "2018_Hhigh", 6 => "2018_Hlow", 7 => "2019", 8 => "2019_Hhigh", 9 => "2019_Hlow", 
-10 => "2020", 11 => "2020_Hhigh", 12 => "2020_Hlow", 13 => "2021", 14 => "2021_Hhigh", 15 => "2021_Hlow", 16 => "2022", 17 => "2022_Hhigh", 18 => "2022_Hlow" ) =#
-
-for yr in keys(years)
-    ts[yr] = CSV.read(joinpath(home_dir, "Input", "timeseries", string("timeseries_", years[yr],"_mod", ".csv")), delim=",", DataFrame)
-    order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]),string("ordering_variable_",years[yr],".csv")), delim=",", DataFrame)
-    #order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", "output_2021", "ordering_variable.csv"), delim=",", DataFrame)
-    repr_days[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]), string("decision_variables_short_",years[yr],".csv")), delim=",", DataFrame)
-    #repr_days[yr] = CSV.read(joinpath(home_dir, "Input", "output_2021", "decision_variables_short.csv"), delim=",", DataFrame)
-end
-
-# Create folder for results
-if isdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_repr_days"))) != 1
-    mkdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_repr_days")))
-end
+# include(joinpath(home_dir,"Processing","cfd_results_processing.jl"))
 
 # Overview scenarios
 scenario_overview = CSV.read(joinpath(home_dir,"overview_scenarios.csv"),DataFrame,delim=";")
 sensitivity_overview = CSV.read(joinpath(home_dir,"overview_sensitivity.csv"),DataFrame,delim=";") 
-
-# Create file with results 
-# add column for sensitivity analysis
-if isfile(joinpath(home_dir,string("overview_results.csv"))) != 1
-    CSV.write(joinpath(home_dir,string("overview_results.csv")),DataFrame(),delim=";",header=["scen_number";"sensitivity";"n_iter";"walltime";"PrimalResidual_EOM"; "DualResidual_EOM"])
-end
-
-# Create folder for results
-if isdir(joinpath(home_dir,string("Results"))) != 1
-    mkdir(joinpath(home_dir,string("Results")))
-end
 
 #= Scenario number 
 if HPC == "DelftBlue"  
@@ -116,7 +86,7 @@ if HPC == "DelftBlue"
                default = 1
        end
        return parse_args(s)
-   end 
+   end
 
    # Simulation number as argument:
    dict_sim_number =  parse_commandline()
@@ -139,6 +109,43 @@ println(string("######################                  Scenario ",scen_number,"
 ## 1. Read associated input for this simulation
 scenario_overview_row = scenario_overview[scen_number,:]
 market_design = scenario_overview_row["market_design"]
+scen_ts = scenario_overview_row["scen_ts"]
+
+# Data common to all scenarios data 
+data = YAML.load_file(joinpath(home_dir,"Input","config.yaml"))
+ts = Dict()
+order_matrix = Dict()
+repr_days = Dict()
+years = Dict(1 => 2018, 2 => 2021, 3 => 2022) # validation CVAR
+
+for yr in keys(years)
+    ts[yr] = CSV.read(joinpath(home_dir, "Input", "timeseries",string(years[yr]),"timeseries_$(years[yr])_$(scen_ts).csv"), 
+    delim=",", DataFrame)
+    order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]),string("ordering_variable_",years[yr],
+    ".csv")), delim=",", DataFrame)
+    repr_days[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]), string("decision_variables_short_",years[yr],".csv")), delim=",", DataFrame)
+
+     y = years[yr]
+    ts[yr] = CSV.read(joinpath(home_dir, "Input", "timeseries", string(y),"timeseries_$(y)_$(scen_ts).csv"),DataFrame)
+    println("→ Loading timeseries for year $y : timeseries_$(y)_$(scen_ts).csv")
+end
+
+# Create folder for results
+if isdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_repr_days"))) != 1
+    mkdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_repr_days")))
+end
+
+# Create file with results 
+# add column for sensitivity analysis
+if isfile(joinpath(home_dir,string("overview_results.csv"))) != 1
+    CSV.write(joinpath(home_dir,string("overview_results.csv")),DataFrame(),delim=";",header=["scen_number";"scen_ts";"sensitivity";"n_iter";"walltime";"PrimalResidual_EOM"; "DualResidual_EOM"])
+end
+
+# Create folder for results
+if isdir(joinpath(home_dir,string("Results"))) != 1
+    mkdir(joinpath(home_dir,string("Results")))
+end
+
 data = YAML.load_file(joinpath(home_dir,"Input","config.yaml")) # reload data to avoid previous sensitivity analysis affected data
 
 if scenario_overview_row["Sens_analysis"] == "YES"  
@@ -163,6 +170,8 @@ if sens_number >= 2
     end
 end
 
+println(" Market design : ", market_design)
+println(" Timeseries : ", scen_ts)
 println("    ")
 println("Including all required input data: done")
 println("   ")
@@ -184,12 +193,12 @@ results = Dict()
 # Consumer models
 for m in agents[:Cons]
     define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row,market_design, repr_days)                                  # Parameters common to all agents
-    define_consumer_parameters!(mdict[m],merge(data["General"],data["CfD"],data["Consumers"][m]),ts, market_design,results)                      # Consumers
+    define_consumer_parameters!(mdict[m],merge(data["General"],data["cfd"],data["Consumers"][m]),ts, market_design,results)                      # Consumers
 end
 # Generator models
 for m in agents[:Gen]
     define_common_parameters!(m,mdict[m],data,ts,agents,scenario_overview_row, market_design, repr_days)                                  # Parameters common to all agents
-    define_generator_parameters!(mdict[m],merge(data["General"],data["CfD"],data["Generators"][m]),ts, market_design)                      # Generators
+    define_generator_parameters!(mdict[m],merge(data["General"],data["cfd"],data["Generators"][m]),ts, market_design)                      # Generators
 end
 
 # Calculate number of agents in each market
@@ -215,10 +224,10 @@ println("   ")
 println("(Progress indicators on primal residuals, relative to tolerance: <1 indicates convergence)")
 println("   ")
 
-#results = Dict()
+results = Dict()
 ADMM = Dict()
 TO = TimerOutput()
-define_results!(merge(data["General"],data["ADMM"],data["CfD"]),results,ADMM,agents, market_design) # initialize structure of results, only those that will be stored in each iteration
+define_results!(merge(data["General"],data["ADMM"],data["cfd"]),results,ADMM,agents, market_design) # initialize structure of results, only those that will be stored in each iteration
 ADMM!(results,ADMM,EOM,mdict,agents,scenario_overview_row,data,TO, market_design)                 # calculate equilibrium 
 ADMM["walltime"] =  TimerOutputs.tottime(TO)*10^-9/60                              # wall time 
 
@@ -230,19 +239,20 @@ println(string("RP EOM: ",  ADMM["Residuals"]["Primal"]["EOM"][end], " -- Tolera
 println(string("RD EOM: ",  ADMM["Residuals"]["Dual"]["EOM"][end], " -- Tolerance: ",ADMM["Tolerance"]["EOM"]))
 println(string("        "))
 
-if market_design == "CfD"
+if market_design == "cfd"
+    println(string("RP cfd: ",  ADMM["Residuals"]["Primal"]["cfd"][end], " -- Tolerance: ",ADMM["Tolerance"]["cfd"]))
+    println(string("RD cfd: ",  ADMM["Residuals"]["Dual"]["cfd"][end], " -- Tolerance: ",ADMM["Tolerance"]["cfd"]))
     println("Σ Q_cfd_gen = ", sum(results["Q_cfd_gen"][m][end] for m in agents[:Gen]))
     println("Σ Q_cfd_con = ", sum(results["Q_cfd_con"][m][end] for m in agents[:Cons]))
 end
 
-
 ## 6. Postprocessing and save results 
 if sens_number >= 2
-save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,sensitivity_overview[sens_number-1,:remarks],market_design) 
-@save joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],"_",sensitivity_overview[sens_number-1,:remarks],market_design))
+save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,sensitivity_overview[sens_number-1,:remarks],market_design,scen_ts,years) 
+@save joinpath(home_dir,"Results", "$market_design" ,string("$scen_ts","_","$market_design","_",sensitivity_overview[sens_number-1,:remarks],market_design))
 else
-save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,"ref",market_design) # for csv files
-@save joinpath(home_dir,"Results",string("Scenario_",scenario_overview_row["scen_number"],".jld2")) results ADMM EOM agents data market_design
+save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,"ref",market_design,scen_ts,years) # for csv files
+@save joinpath(home_dir,"Results","$market_design",string("$scen_ts","_","$market_design",".jld2")) results ADMM EOM agents data market_design
 end
 
 println("Postprocessing & save results: done")

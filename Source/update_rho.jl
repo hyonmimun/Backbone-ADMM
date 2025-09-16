@@ -9,18 +9,18 @@ function update_rho!(ADMM::Dict, iter::Int64, market_design::AbstractString)
             push!(ADMM["ρ"]["EOM"], ADMM["ρ"]["EOM"][end])  # no change
         end
 
-        if market_design == "CfD"
-            if ADMM["Residuals"]["Primal"]["CfD"][end] > 2 * ADMM["Residuals"]["Dual"]["CfD"][end]
-                push!(ADMM["ρ"]["CfD"], minimum([1000.0, 1.1 * ADMM["ρ"]["CfD"][end]]))
-            elseif ADMM["Residuals"]["Dual"]["CfD"][end] > 2 * ADMM["Residuals"]["Primal"]["CfD"][end]
-                push!(ADMM["ρ"]["CfD"], 1/1.1 * ADMM["ρ"]["CfD"][end])
+        if market_design == "cfd"
+            if ADMM["Residuals"]["Primal"]["cfd"][end] > 2 * ADMM["Residuals"]["Dual"]["cfd"][end]
+                push!(ADMM["ρ"]["cfd"], minimum([1000.0, 1.1 * ADMM["ρ"]["cfd"][end]]))
+            elseif ADMM["Residuals"]["Dual"]["cfd"][end] > 2 * ADMM["Residuals"]["Primal"]["cfd"][end]
+                push!(ADMM["ρ"]["cfd"], 1/1.1 * ADMM["ρ"]["cfd"][end])
             else
-                push!(ADMM["ρ"]["CfD"], ADMM["ρ"]["CfD"][end])  # no change
+                push!(ADMM["ρ"]["cfd"], ADMM["ρ"]["cfd"][end])  # no change
             end
         else
             # Ensure that buffer contains same number of entries across all iterations even when rho is not updated = maintain buffer length (last entry gets repeated)
-            if haskey(ADMM["ρ"], "CfD") # if CfD is enabled
-                push!(ADMM["ρ"]["CfD"], ADMM["ρ"]["CfD"][end]) # Avoid IndexError or KeyError
+            if haskey(ADMM["ρ"], "cfd") # if cfd is enabled
+                push!(ADMM["ρ"]["cfd"], ADMM["ρ"]["cfd"][end]) # Avoid IndexError or KeyError
             end
             end
         end

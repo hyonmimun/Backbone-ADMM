@@ -1,0 +1,4 @@
+Year,Section,AgentType,Agent,ζ_cfd,Q_cfd_gen_tot,Q_cfd_con_tot,g_cfd_total,cfd_premium_gen_tot,cfd_premium_con_tot,cfd_penalty_gen_tot,cfd_penalty_con_tot
+1,SUMMARY,ALL,ALL,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+2,SUMMARY,ALL,ALL,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+3,SUMMARY,ALL,ALL,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

@@ -4,96 +4,97 @@ General:
   nDays: 365 # days
   nYears: 3 # years
   totConsumers: 1000000 # 1 million consumers
+  Beta: 0 # 1/2* u 
 
 ADMM:
- rho_EOM: 1 # rho ADMM penalty term, EOM 
- max_iter: 4 # maximum number of iterations
+ rho_EOM: 1 # rho ADMM penalty term, EOM (10^3 €/GWh)
+ max_iter: 100 # maximum number of iterations
  epsilon: 0.1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
- CircularBufferSize: 20 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
+ CircularBufferSize: 30 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
 
-CfD: 
-  lambda_cfd: 500 
-  rho_cfd: 0.1 #rho penalty term, CfD
+cfd: 
+  lambda_cfd: 500 # 10^3 €/GWh
+  rho_cfd: 1 #rho penalty term, cfd (10^3 €/GWh)
   epsilon_cfd: 0.1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
 
 Consumers: # Set of representative consumers
   TypeA:
    Share: 0.25 # Share of consumers in overall consumer mix
-   PV_cap: 0.003 # MWp 
+   PV_cap: 0.000003 #GWp 0.003 MWp 
    D: "CONS_LOW" # Demand timeseries that needs to be picked up
    PV_AF: "SOLAR_SOUTH" # AF solar timeseries that needs to be picked up
-   WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
+   WTP: 500 # (10^3 €/GWh) 500 (€/MWh)
    Battery:
-    cap_smax: 10
+    cap_smax: 0.000002 # GW (2 kW)
     EC: 0.95
     ED: 0.96
     Decay: 0.9999
     winj: 0.1
     wwith: 0.1
-    #SOC_init: 5
+    #SOC_init: 0 starts every day at zero
 
   TypeB: 
    Share: 0.5  # Share of consumers in overall consumer mix
-   PV_cap: 0.005 # MWp 
+   PV_cap: 0.000002 # GWp 0.005 MWp 
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
-   WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
+   WTP: 250 # 10^3 €/GW 500 €/MWh
    Battery:
-    cap_smax: 10
+    cap_smax: 0.000001 # GW (1 kW)
     EC: 0.95
     ED: 0.96
     Decay: 0.9999
-    winj: 0.1
-    wwith: 0.1
+    winj: 0.000002
+    wwith: 0.000002
     #SOC_init: 5
 
   TypeC: 
    Share: 0.25  # Share of consumers in overall consumer mix
-   PV_cap: 0.01 # MWp 
+   PV_cap: 0.000001 # GWp # 0.001 MWp 
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
-   WTP: 1000 # Willingness to pay for the first 80% demand (fixed)
+   WTP: 100 # 10^3 €/GWh (500 €/MWh)
    Battery:
-    cap_smax: 10
+    cap_smax: 0.000001 # GW (1 kW)
     EC: 0.95
     ED: 0.96
     Decay: 0.9999
-    winj: 0.1
-    wwith: 0.1
+    winj: 0.000002
+    wwith: 0.000002
     #SOC_init: 5
 
-Generators: 
-  # OPEX are parametrized as a/2 x g^2 + b x g 
+Generators:
+# OPEX are parametrized as a/2 x g^2 + b x g 
   Baseload:
-    a: 0.008 # (€/MWh)^2
-    b: 0 # €/MWh
-    C: 500 # MW
+    a: 0.008 # (10^3 €/GWh)^2 (0.008 (€/MWh)^2)
+    b: 10 # €/MWh
+    C: 5 # GW (5000 MW)
 
   MidMerit:
-    a: 0.032 # (€/MWh)^2
-    b: 40 # €/MWh
-    C: 5000 # MW
+    a: 0.032 # (€/GWh)^2 (0.032 €/MWh^2)
+    b: 40 # €/GWh (40 €/MWh)
+    C: 5 # GW (5000 MW)
 
   Peak:
-    a: 0.08 # (€/MWh)^2
-    b: 200 # €/MWh
-    C: 5000 # MW
+    a: 0.08 # (€/GWh)^2 0.08 (€/MWh)^2
+    b: 200 # €/GWh (200 €/MWh)
+    C: 5 # GW (5000 MW)
   
   WindOnshore:
     a: 0 # (€/MWh)^2
     b: 0 # €/MWh
-    C: 500 # MW
+    C: 1 # 0.5 GW (500 MW)
     AF: "WIND_ONSHORE"
   
   WindOffshore:
     a: 0 # (€/MWh)^2
     b: 0 # €/MWh
-    C: 500 # MW
+    C: 1 #0.5 #GW (500 MW)
     AF: "WIND_OFFSHORE"
   
   SolarPanels:
     a: 0 # (€/MWh)^2
     b: 0 # €/MWh
-    C: 500 # MW
+    C: 1 #0.5 #GW (500 MW)
     AF: "SOLAR_SOUTH"
 
