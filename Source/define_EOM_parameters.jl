@@ -11,9 +11,7 @@ function define_EOM_parameters!(EOM::Dict,data::Dict,ts::Dict,scenario_overview_
 # timeseries
     for jy in keys(years)
         # timeseries: take the demand load for all hours in the representative days of a specific year: Take the load timeseries of that specific year and take the values for the hourly timesteps for all repr days: look timesteps up as the absolute 'hour' in the yearly timeseries.
-        EOM["D"][:,:,jy] = [ts[jy][!,:LOAD][idx(jy, jd, jh)] for jh=1:nT, jd=1:nR]/1000 # GWh
-        #EOM["elasticity"][:,:,jy] = [ts[jy][!,:ELASTICITY_EL][idx(jy, jd, jh)]/10^3 for jh=1:nT, jd=1:nR] # GWh
-
+        EOM["D"][:,:,jy] = [ts[jy][!,:LOAD][idx(jy, jd, jh)] for jh=1:nT, jd=1:nR]/1000 # GW
         # weights of representative days
         EOM["W"][jy] = Dict(jd => repr_days[jy][!,:weights][jd] for jd=1:nR)
     end 

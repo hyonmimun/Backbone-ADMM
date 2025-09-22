@@ -1,13 +1,11 @@
 using JLD2, DataFrames, CSV
 
-# ---- Invoer / Uitvoer ----
-jld_path  = joinpath("Results", "cfd", "$market_design.jld2")
-out_prefx = joinpath("Results", "cfd", "_cfd_agents_results")
 
-# ---- Laden ----
+jld_path  = joinpath("Results", "cfd", "$(scen_ts)_$(market_design).jld2")
+out_prefx = joinpath("Results", "cfd", "$(scen_ts)_cfd_agents_results")
+
 @load jld_path results ADMM EOM agents data
 
-# ---- Helpers ----
 get_latest(buf) = buf[end]
 to_str(k) = String(k)
 nY = data["General"]["nYears"]
@@ -26,16 +24,16 @@ function add_series!(df::DataFrame, agent_type::AbstractString, agent::AbstractS
     end
 end
 
-# ---- Long-format tabel: alleen individuele agents (Gen + Cons) ----
+# Long-format tabel: alleen individuele agents (Gen + Cons)
 df = DataFrame(year=Int[], agent_type=String[], agent=String[], metric=String[], value=Float64[])
 
-haskey(results, "g_cfd") || error("CfD-resultaten niet gevonden. Is market_design = \"cfd\" gedraaid?")
+# haskey(results, "g_cfd") || error("CfD-resultaten niet gevonden. Is market_design = \"cfd\" gedraaid?")
 
 # Generators (per individuele generator)
 for (gen, buf) in results["g_cfd"]
     g3d = get_latest(buf)                         # (nT,nR,nY)
     g_y = sum_over_time_and_reprdays(g3d)
-    add_series!(df, "Gen", to_str(gen), "g_cfd_sum", g_y, years)
+    add_series!(df, "Gen", to_str(gen), "g_cfd_total", g_y, years)
 end
 for (gen, buf) in get(results, "Q_cfd_gen", Dict())
     add_series!(df, "Gen", to_str(gen), "Q_cfd_gen", get_latest(buf), years)
@@ -64,6 +62,10 @@ for (con, buf) in get(results, "cfd_penalty_con", Dict())
     add_series!(df, "Cons", to_str(con), "cfd_penalty_con", get_latest(buf), years)
 end
 
+for (con, buf) in get(results, "share_cfd_con", Dict())
+    add_series!(df, "Cons", to_str(con), "share_cfd_con", get_latest(buf), years)
+end
+
 # ---- Schrijf één CSV per jaar: rijen = (agent_type, agent), kolommen = metrics ----
 for y in years
     df_y = filter(:year => ==(y), df)
@@ -83,7 +85,7 @@ for y in years
 
     # Bestandsnaam en schrijven
     ytag = lpad(string(y), 2, '0')  # Y01, Y02, ...
-    out_csv = out_prefx * "_Y$(ytag).csv"
-    CSV.write(out_csv, wide)
-    println("Geschreven: ", out_csv)
+    outfile_csv = out_prefx * "_Y$(ytag).csv"
+    CSV.write(outfile_csv, wide)
+    println("Geschreven: ", outfile_csv)
 end

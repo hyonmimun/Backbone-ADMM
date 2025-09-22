@@ -29,8 +29,8 @@ function define_common_parameters!(m::String,mod::Model, data::Dict, ts::Dict, a
     
     if market_design == "cfd"
     # Parameters related to the cfd
-        mod.ext[:parameters][:ζ_cfd] = zeros(nY) # cfd premium
-        mod.ext[:parameters][:Q_cfd_bar] = zeros(nY) # ADMM penalty term related to the cfd
+        mod.ext[:parameters][:ζ_cfd] = zeros(nY)
+        mod.ext[:parameters][:Q_cfd_bar] = zeros(nY)
         mod.ext[:parameters][:ρ_cfd] = data["cfd"]["rho_cfd"]
     end
 

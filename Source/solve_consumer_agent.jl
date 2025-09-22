@@ -13,36 +13,35 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
    PV = mod.ext[:timeseries][:PV]
    D = mod.ext[:timeseries][:D]
 
-     # Extract parameters
-    λ_EOM = mod.ext[:parameters][:λ_EOM] # EOM prices
-    g_bar = mod.ext[:parameters][:g_bar] # element in ADMM penalty term related to EOM
-    ρ_EOM = mod.ext[:parameters][:ρ_EOM] # rho-value in ADMM related to EOM auctions
-    D_fixed = mod.ext[:parameters][:D_fixed]  # Fixed demand (80%)
-    WTP = mod.ext[:parameters][:WTP]  # Willingness to pay
-    D_ELA_max = mod.ext[:parameters][:D_ELA_max]  # Max elastic demand
-    W = mod.ext[:parameters][:W] # weight of representative day
+    # Extract parameters
+    λ_EOM = mod.ext[:parameters][:λ_EOM]
+    g_bar = mod.ext[:parameters][:g_bar]
+    ρ_EOM = mod.ext[:parameters][:ρ_EOM]
+    D_fixed = mod.ext[:parameters][:D_fixed]
+    WTP = mod.ext[:parameters][:WTP]
+    D_ELA_max = mod.ext[:parameters][:D_ELA_max]
+    W = mod.ext[:parameters][:W]
     P = mod.ext[:parameters][:P]
-    β = mod.ext[:parameters][:β] # risk aversion parameter
+    β = mod.ext[:parameters][:β]
 
     # Battery parameters
-    cap_smax = mod.ext[:parameters][:cap_smax] # Battery capacity
-    EC = mod.ext[:parameters][:EC] # Charging efficiency
-    ED = mod.ext[:parameters][:ED] # Discharging efficiency
-    Decay = mod.ext[:parameters][:Decay] # Hourly decay
-    winj = mod.ext[:parameters][:winj] # Max charging power
-    wwith = mod.ext[:parameters][:wwith] # Max discharging power
-    #SOC_init = mod.ext[:parameters][:SOC_init] # initial SOC
+    cap_smax = mod.ext[:parameters][:cap_smax]
+    EC = mod.ext[:parameters][:EC]
+    ED = mod.ext[:parameters][:ED]
+    Decay = mod.ext[:parameters][:Decay]
+    winj = mod.ext[:parameters][:winj]
+    wwith = mod.ext[:parameters][:wwith]
 
     # Create variables
     g = mod.ext[:variables][:g]
     D_ELA = mod.ext[:variables][:D_ELA]
     SOC = mod.ext[:variables][:SOC]
     charge = mod.ext[:variables][:charge]
-    discharge = mod.ext[:variables][:discharge] 
+    discharge = mod.ext[:variables][:discharge]
     
     # Create affine expressions (per year)
     utility_term = mod.ext[:expressions][:utility_term] = @expression(mod, [jh=JH, jd=JD, jy=JY], WTP * D_ELA[jh,jd,jy] - (WTP / (2 * D_ELA_max[jh,jd,jy])) * D_ELA[jh,jd,jy]^2)
-    consumer_costs = mod.ext[:expressions][:consumer_costs] = @expression(mod,[jh=JH, jd=JD, jy=JY], λ_EOM[jh, jd, jy] * -g[jh, jd, jy]) # import = -g
+    consumer_costs = mod.ext[:expressions][:consumer_costs] = @expression(mod,[jh=JH, jd=JD, jy=JY], λ_EOM[jh, jd, jy] * g[jh, jd, jy]) # import = -g
     
     consumer_profit = mod.ext[:expressions][:consumer_profit] = @expression(mod, [jy = JY], sum( W[jd, jy] * (utility_term[jh, jd, jy] - consumer_costs[jh,jd,jy]) for jh in JH, jd in JD))
     consumer_penalty = mod.ext[:expressions][:consumer_penalty] = @expression(mod,[jy=JY], sum(ρ_EOM/2 * W[jd,jy]*(g[jh,jd,jy] - g_bar[jh,jd,jy])^2 for jh in JH, jd in JD))
@@ -56,7 +55,7 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
     objective_consumer = mod.ext[:expressions][:objective_consumer] = @expression(mod,          
         - sum(P[jy] * consumer_profit[jy] for jy in JY)
         + sum(P[jy] * consumer_penalty[jy] for jy in JY)
-        #+ consumer_mv
+        + consumer_mv
         )
 
     if market_design == "cfd"
@@ -64,19 +63,17 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
         Q_cfd_con = mod.ext[:variables][:Q_cfd_con]
 
         # cfd parameters
-        λ_cfd = mod.ext[:parameters][:λ_cfd]  # €/MWh (strike price)
-        ζ_cfd = mod.ext[:parameters][:ζ_cfd]  # €/MWh (cfd contract premium)
-        g_cfd_total = mod.ext[:parameters][:g_cfd_total] # Total generation of all generators under cfd
-        Q_cfd_bar = mod.ext[:parameters][:Q_cfd_bar] # Average cfd contracted capacity across all agents [MW]
-        ρ_cfd = mod.ext[:parameters][:ρ_cfd] # rho-value in ADMM related to cfd auctions
-        Q_cfd_con_tot = mod.ext[:parameters][:Q_cfd_con_tot] # Total cfd contracted capacity of all consumers, perhaps not working bc of the different iteration steps, consider using Q_cfd_gen_tot instead
-        
-        @assert length(Q_cfd_con_tot) == length(JY)
-        @assert length(Q_cfd_bar) == length(JY)
+        λ_cfd = mod.ext[:parameters][:λ_cfd]
+        ζ_cfd = mod.ext[:parameters][:ζ_cfd]
+        g_cfd_total = mod.ext[:parameters][:g_cfd_total]
+        Q_cfd_bar = mod.ext[:parameters][:Q_cfd_bar]
+        ρ_cfd = mod.ext[:parameters][:ρ_cfd]
+        #Q_cfd_con_tot = mod.ext[:parameters][:Q_cfd_con_tot] # Total cfd contracted capacity of all consumers, perhaps not working bc of the different iteration steps, consider using Q_cfd_gen_tot instead
 
         # cfd expressions (per year)
-        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod,[jy=JY], Q_cfd_con[jy] / (Q_cfd_con_tot[jy]+0.00001)) # Adding a small value to avoid dividing by zero
-        cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * share_cfd_con[jy] * (λ_EOM[jh,jd,jy] - λ_cfd) * g_cfd_total[jh,jd,jy] for jh in JH, jd in JD))
+        #share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod,[jy=JY], Q_cfd_con[jy] / (Q_cfd_con_tot[jy]+1e-9)) # Adding a small value to avoid dividing by zero
+        #cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * share_cfd_con[jy] * (λ_EOM[jh,jd,jy] - λ_cfd) * g_cfd_total[jh,jd,jy] for jh in JH, jd in JD))
+        cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * (λ_EOM[jh,jd,jy] - λ_cfd) * Q_cfd_con[jy] for jh in JH, jd in JD))
         cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, [jy=JY], ζ_cfd[jy] * Q_cfd_con[jy])
         cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod,[jy=JY], ρ_cfd/2 * (Q_cfd_con[jy] - Q_cfd_bar[jy])^2)
         cfd_consumer_profit = mod.ext[:expressions][:cfd_consumer_profit] = @expression(mod, [jy=JY], consumer_profit[jy] + cfd_payout[jy] - cfd_premium[jy])
@@ -109,16 +106,7 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
 
    optimize!(mod)
 
-   #= println("Status: ", termination_status(mod))
-    @printf "SOC[1,1,1] = %.9f GWh\n" JuMP.value(SOC[1,1,1])
-    @printf "charge[1,1,1] = %.9f GW\n" JuMP.value(charge[1,1,1])
-    @printf "discharge[1,1,1] = %.9f GW\n" JuMP.value(discharge[1,1,1])
-
-    # laat eerste dag zien:
-    vals_soc = JuMP.value.(SOC[:, first(JD), first(JY)])
-    @printf "SOC min/max (day1): %.9f .. %.9f GWh\n" minimum(vals_soc) maximum(vals_soc) =#
-
-    #=println("Termination status: ", MOI.get(mod, MOI.TerminationStatus()))
+    #= println("Termination status: ", MOI.get(mod, MOI.TerminationStatus()))
     println("Primal status:      ", MOI.get(mod, MOI.PrimalStatus()))
     println("Dual status:        ", MOI.get(mod, MOI.DualStatus())) =#
    return mod 

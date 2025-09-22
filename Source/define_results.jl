@@ -92,6 +92,7 @@ function define_results!(data::Dict,results::Dict,ADMM::Dict,agents::Dict,market
         results["cfd_payout"] = Dict()
         results["cfd_premium"] = Dict()
         results["cfd_penalty_con"] = Dict()
+        results["share_cfd_con"] = Dict()
 
         for m in agents[:Cons]
             results["Q_cfd_con"][m] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])
@@ -105,17 +106,20 @@ function define_results!(data::Dict,results::Dict,ADMM::Dict,agents::Dict,market
 
             results["cfd_penalty_con"][m] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])
             push!(results["cfd_penalty_con"][m], zeros(nY))
+
+            results["share_cfd_con"][m] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])
+            push!(results["share_cfd_con"][m], zeros(nY))
         end
 
         # cfd totals
-        results["g_cfd_total"] = CircularBuffer{Array{Float64,3}}(data["CircularBufferSize"])
+       #= results["g_cfd_total"] = CircularBuffer{Array{Float64,3}}(data["CircularBufferSize"])
         push!(results["g_cfd_total"], zeros(nT,nR,nY))
         
         results["Q_cfd_con_tot"] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])
-        push!(results["Q_cfd_con_tot"],zeros(nY))
+        push!(results["Q_cfd_con_tot"],zeros(nY)) =#
 
-        results["Q_cfd_gen_tot"] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])
-        push!(results["Q_cfd_gen_tot"],zeros(nY))
+        #results["Q_cfd_gen_tot"] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])
+        #push!(results["Q_cfd_gen_tot"],zeros(nY))
 
         results["ζ"] = Dict()
         results["ζ"]["cfd"] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])

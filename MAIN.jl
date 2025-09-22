@@ -135,16 +135,16 @@ if isdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_r
     mkdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_repr_days")))
 end
 
-# Create file with results 
-# add column for sensitivity analysis
-if isfile(joinpath(home_dir,string("overview_results.csv"))) != 1
-    CSV.write(joinpath(home_dir,string("overview_results.csv")),DataFrame(),delim=";",header=["scen_number";"sensitivity";"n_iter";"walltime";"PrimalResidual_EOM"; "DualResidual_EOM"])
-end
-
 # Create folder for results
 if isdir(joinpath(home_dir,string("Results"))) != 1
     mkdir(joinpath(home_dir,string("Results")))
-end 
+end
+
+# Create file with results 
+# add column for sensitivity analysis
+if isfile(joinpath(home_dir,string("overview_results.csv"))) != 1
+    CSV.write(joinpath(home_dir,string("overview_results.csv")),DataFrame(),delim=";",header=["scen_number";"sensitivity";"n_iter";"walltime";"PrimalResidual_EOM"; "DualResidual_EOM";"rho_EOM"])
+end
 
 data = YAML.load_file(joinpath(home_dir,"Input","config.yaml")) # reload data to avoid previous sensitivity analysis affected data
 
@@ -254,6 +254,9 @@ else
 save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,"ref",market_design,scen_ts,years) # for csv files
 @save joinpath(home_dir,"Results","$market_design",string("$scen_ts","_","$market_design",".jld2")) results ADMM EOM agents data market_design
 end
+
+#if market_design == "cfd"
+#    cfd_results_processing()
 
 println("Postprocessing & save results: done")
 println("   ")

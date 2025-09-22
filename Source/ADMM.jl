@@ -14,34 +14,33 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
     
     for iter in iterations
         if convergence == 0 # convergence not reached yet; loop continues solving
-            if market_design == "cfd"
+           #= if market_design == "cfd"
                         # fix Q_cfd_con_tot on the previous iteration value whilst solving
-                        Q_cfd_con_tot_prev = isempty(results["Q_cfd_con_tot"]) ? fill(1e-8, nY) : copy(last(results["Q_cfd_con_tot"]))
+                        Q_cfd_con_tot_prev = isempty(results["Q_cfd_con_tot"]) ? fill(1e-9, nY) : copy(last(results["Q_cfd_con_tot"]))
                         # Totale cfd-productie (3D: tijd × repr. dag × jaar)
-                        g_cfd_total_prev = isempty(results["g_cfd_total"]) ? zeros(nT, nR, nY) : copy(last(results["g_cfd_total"]))
+                        g_cfd_total_prev = isempty(results["g_cfd_total"]) ? fill(1e-9,nT, nR, nY) : copy(last(results["g_cfd_total"]))
 
                         # Zet snapshots in elk relevant agent-model
                         for m in agents[:Cons]
                         mdict[m].ext[:parameters][:Q_cfd_con_tot] = Q_cfd_con_tot_prev  # zelfde snapshot voor iedereen
                         mdict[m].ext[:parameters][:g_cfd_total]   = g_cfd_total_prev
                         end
-            end
+            end =#
+            
             # Multi-threaded version
             @sync for m in agents[:all]
                 # created subroutine to allow multi-threading to solve agents' decision problems
                 @spawn ADMM_subroutine!(m,results,ADMM,EOM,mdict[m],agents,TO,market_design)
             end
-            if market_design == "cfd"
+          #=  if market_design == "cfd"
                     # Som over alle consumenten → vector (nY)
-                    Q_cfd_con_tot_new = sum((last(results["Q_cfd_con"][mc]) for mc in agents[:Cons]);
-                                            init = zeros(nY))
+                    Q_cfd_con_tot_new = sum((last(results["Q_cfd_con"][mc]) for mc in agents[:Cons]))
                     push!(results["Q_cfd_con_tot"], Q_cfd_con_tot_new)
 
                     # Som over alle generators → array (nT,nR,nY)
-                    g_cfd_total_new = sum((last(results["g_cfd"][mg]) for mg in agents[:Gen]);
-                                        init = zeros(nT, nR, nY))
+                    g_cfd_total_new = sum((last(results["g_cfd"][mg]) for mg in agents[:Gen]))
                     push!(results["g_cfd_total"], g_cfd_total_new)
-            end
+            end =#
 
             end
             # Imbalances
@@ -68,26 +67,19 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
             if iter > 1
                 push!(ADMM["Residuals"]["Dual"]["EOM"], sqrt(sum(sum((ADMM["ρ"]["EOM"][end]*((results["g"][m][end]-sum(results["g"][mstar][end] for mstar in agents[:eom])./(EOM["nAgents"]+1)) - (results["g"][m][end-1]-sum(results["g"][mstar][end-1] for mstar in agents[:eom])./(EOM["nAgents"]+1)))).^2 for m in agents[:eom]))))
                 
-                #=if market_design == "cfd"
+             if market_design == "cfd"
                     push!(ADMM["Residuals"]["Dual"]["cfd"], sqrt(
-                    sum((ADMM["ρ"]["cfd"][end] * (results["Q_cfd_gen"][m][end] .- results["Q_cfd_gen"][m][end-1])).^2 for m in agents[:Gen]) +
-                    sum((ADMM["ρ"]["cfd"][end] * (results["Q_cfd_con"][m][end] .- results["Q_cfd_con"][m][end-1])).^2 for m in agents[:Cons])
-                ))  # per agent L2 =#
+                        sum( sum(abs2, ADMM["ρ"]["cfd"][end] .* (
+                                (results["Q_cfd_gen"][m][end]   - sum(results["Q_cfd_gen"][mm][end] for mm in agents[:Gen])./length(agents[:Gen])) -
+                                (results["Q_cfd_gen"][m][end-1] - sum(results["Q_cfd_gen"][mm][end-1] for mm in agents[:Gen])./length(agents[:Gen]))
+                            )) for m in agents[:Gen]) +
 
-                if market_design == "cfd"
-                    ρ = ADMM["ρ"]["cfd"][end]
-                    diff_or_zero(buf) = length(buf) >= 2 ? (buf[end] .- buf[end-1]) : zeros(nY)
-
-                    r2 = sum( sum(abs2, diff_or_zero(results["Q_cfd_gen"][m])) for m in agents[:Gen]) +
-                        sum( sum(abs2, diff_or_zero(results["Q_cfd_con"][m])) for m in agents[:Cons])
-                    push!(ADMM["Residuals"]["Dual"]["cfd"], ρ * sqrt(r2))
+                        sum( sum(abs2, ADMM["ρ"]["cfd"][end] .* (
+                                (results["Q_cfd_con"][c][end]   - sum(results["Q_cfd_con"][ci][end] for ci in agents[:Cons])./length(agents[:Cons])) -
+                                (results["Q_cfd_con"][c][end-1] - sum(results["Q_cfd_con"][ci][end-1] for ci in agents[:Cons])./length(agents[:Cons]))
+                            )) for c in agents[:Cons])
+                    ))
                 end
-                #=
-                    sqrt(sum(ADMM["ρ"]["cfd"][end]*((sum(results["Q_cfd_gen"][m][end] for m in agents[:Gen]) - 
-                    sum(results["Q_cfd_con"][m][end] for m in agents[:Cons])) - (sum(results["Q_cfd_gen"][m][end-1] for m in agents[:Gen]) - 
-                    sum(results["Q_cfd_con"][m][end-1] for m in agents[:Cons])))).^2)) # aggregate dual residuals 
-                    end =#           
-            
             end
 
             # Price updates 
@@ -96,7 +88,6 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
                 
                 if market_design == "cfd"
                     push!(results[ "ζ"]["cfd"], results[ "ζ"]["cfd"][end] - ADMM["ρ"]["cfd"][end]/100*ADMM["Imbalances"]["cfd"][end])
-                    #println(string("ζ_cfd: ", results[ "ζ"]["cfd"][end]))
                 end
             end
 
@@ -118,12 +109,17 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
             end
 
             # ADMM convergence results
-            row = DataFrame(scen_number = [scenario_overview_row["scen_number"]], iteration = [ADMM["n_iter"]], primal_residual = [ADMM["Residuals"]["Primal"]["EOM"][end]], dual_residual = [ADMM["Residuals"]["Dual"]["EOM"][end]])
-                
+            pr_eom = ADMM["Residuals"]["Primal"]["EOM"][end]
+            du_eom = isempty(ADMM["Residuals"]["Dual"]["EOM"]) ? missing : ADMM["Residuals"]["Dual"]["EOM"][end]
+            
+            row = DataFrame(scen_number = scen_number = [scenario_overview_row["scen_number"]], iteration =[ADMM["n_iter"]], primal_residual = [pr_eom], dual_residual = Union{Missing,Float64}[du_eom])
+
             if market_design == "cfd"
-                    push!(row, DataFrame(cfd_primal = [ADMM["Residuals"]["Primal"]["cfd"][end]], cfd_dual = [ADMM["Residuals"]["Dual"]["cfd"][end]]; cols = :union))
+                    pr_cfd = ADMM["Residuals"]["Primal"]["cfd"][end]
+                    du_cfd = isempty(ADMM["Residuals"]["Dual"]["cfd"]) ? missing : ADMM["Residuals"]["Dual"]["cfd"][end]
+                    row[!, :cfd_primal] = [pr_cfd]                              # kolom toevoegen
+                    row[!, :cfd_dual]   = Union{Missing,Float64}[du_cfd]
                 end
-            # schrijf/append: bij eerste keer wordt header geschreven, daarna alleen rijen
             CSV.write(logpath, row; append=isfile(logpath), delim=";")
             
             # Check convergence: primal and dual satisfy tolerance 

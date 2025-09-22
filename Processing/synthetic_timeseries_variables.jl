@@ -1,10 +1,20 @@
 using CSV, DataFrames, Dates, LinearAlgebra, Statistics
 
 year          = 2022
+year_nr = "year3"
 
-synthetic_results_path = "Results_8_repr_days/EOM_Generation_TypeA_year3.csv"
+market_design = "EOM"
+scenario = "base"
+variable = "SOC"
+#agent_type = Cons #Gen
+agent = "TypeA"
+
+
+results_path = joinpath("Results_8_repr_days","$market_design","$variable","$agent")
+synthetic_results_path = joinpath(results_path,"$(scenario)_$(market_design)_$(variable)_$(agent)_$year_nr.csv")
+#synthetic_results_path = "Results_8_repr_days/EOM/SOC/TypeA/base_EOM_SOC_TypeA_year1.csv"
 weights_path  = "Input/output_$year/ordering_variable_$year.csv"
-out_path      = "Input/output_$year/EOM_Generation_TypeA_year3.csv"
+out_path      = joinpath(results_path,"synthetic_$(scenario)_$(market_design)_$(variable)_$(agent)_$(year_nr).csv")
 
 repr_results = CSV.read(synthetic_results_path, DataFrame)        # 24 x 8
 weights_df = CSV.read(weights_path, DataFrame)     # 365 x 8
@@ -25,7 +35,7 @@ t_end   = DateTime(year, 12, 31, 23, 0, 0)
 timestamps = collect(t_start:Hour(1):t_end)
 @assert length(timestamps) == 8760 "Aantal timestamps is niet 8760; check schrikkeljaar of inputs."
 
-out_df = DataFrame(timestamp = timestamps, eom_price = year_hours_8760)
+out_df = DataFrame(timestamp = timestamps, SOC = year_hours_8760)
 CSV.write(out_path, out_df)
 println("Klaar! Weggeschreven naar: $out_path")
 

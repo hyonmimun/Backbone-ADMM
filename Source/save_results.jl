@@ -11,7 +11,7 @@ results_dir = joinpath(home_dir,string("Results_", data["General"]["nReprDays"],
 out_dir = joinpath(results_dir, String(market_design))
 
 # note that type of "sens" is not defined as a string stored in a dictionary is of type String31, whereas a "regular" string is of type String. Specifying one or the other may throw errors.
-vector_output = [scenario_overview_row["scen_number"]; sens; ADMM["n_iter"]; ADMM["walltime"];ADMM["Residuals"]["Primal"]["EOM"][end];ADMM["Residuals"]["Dual"]["EOM"][end]]
+vector_output = [scenario_overview_row["scen_number"]; sens; ADMM["n_iter"]; ADMM["walltime"];ADMM["Residuals"]["Primal"]["EOM"][end];ADMM["Residuals"]["Dual"]["EOM"][end]; data["ADMM"]["rho_EOM"]]
 CSV.write(joinpath(home_dir,string("overview_results.csv")), DataFrame(reshape(vector_output,1,:),:auto), delim=";",append=true);
 
 # Net profits for last iteration
@@ -27,10 +27,17 @@ sorted_years = [years[i] for i in idxs]    # [2018,2021,2022]
 year_labels = string.(sorted_years)        # ["2018","2021","2022"]
 
 # Consumers
+if market_design == "EOM"
 utility_term = [collect(value.(mdict[m].ext[:expressions][:utility_term])) for m in agents[:Cons]]
 consumer_profit = [collect(value.(mdict[m].ext[:expressions][:consumer_profit])) for m in agents[:Cons]]
 consumer_costs   = [collect(value.(mdict[m].ext[:expressions][:consumer_costs]))  for m in agents[:Cons]]
 #consumer_mv   = [collect(value.(mdict[m].ext[:expressions][:consumer_mv]))      for m in agents[:Cons]]
+elseif market_design == "cfd"
+    utility_term = [collect(value.(mdict[m].ext[:expressions][:utility_term])) for m in agents[:Cons]]
+    consumer_profit = [collect(value.(mdict[m].ext[:expressions][:cfd_consumer_profit])) for m in agents[:Cons]]
+    consumer_costs   = [collect(value.(mdict[m].ext[:expressions][:consumer_costs]))  for m in agents[:Cons]]
+    #consumer_mv   = [collect(value.(mdict[m].ext[:expressions][:consumer_mv]))      for m in agents[:Cons]]
+end 
 
 df_utility = DataFrame(Consumer = String.(agents[:Cons]))
 df_profit = DataFrame(Consumer = String.(agents[:Cons]))
@@ -70,8 +77,8 @@ CSV.write(joinpath(out_dir, "expressions","Gen", string(scen_ts, "_", market_des
 CSV.write(joinpath(out_dir, "expressions","Gen", string(scen_ts, "_", market_design, "_generator_costs.csv")),df_gencosts; delim=";")
 #CSV.write(joinpath(out_dir, "expressions","Gen",string(scen_ts, "_", market_design, "_generator_mv.csv")),df_genmv; delim=";")
 
-##### Variables for all iterations #####
-    for jy in 1:nY
+##### Variables for all iterations #####   
+for jy in 1:nY
         #CSV.write(joinpath(home_dir,string("Results_",data["General"]["nReprDays"],"_repr_days"),string(market_design,"_demand_",jy,".csv")), DataFrame(EOM["D"][:,:,jy],:auto), delim=";");
         CSV.write(joinpath(out_dir,"electricity_price",string(scen_ts,"_",market_design,"_electricity_price_year_",jy,".csv")), DataFrame(results["λ"]["EOM"][end][:,:,jy],:auto), delim=";");
 
@@ -87,6 +94,47 @@ CSV.write(joinpath(out_dir, "expressions","Gen", string(scen_ts, "_", market_des
             CSV.write(joinpath(out_dir,"discharge",string(m),string(scen_ts,"_",market_design,"_discharge_",m,"_year",jy,".csv")), DataFrame(results["discharge"][m][end][:,:,jy],:auto), delim=";")
         end
 
+        #CSV.write(joinpath(out_dir, "generation", "total_demand",string(scen_ts, "_", market_design, "_total_demand_year", jy, ".csv")),DataFrame(total_demand, :auto); delim=';')
+        #CSV.write(joinpath(out_dir,"PV","$(scen_ts)_$(market_design)_$(m)_PV_timeseries_year$(jy).csv"), DataFrame(PV_cons[:, :, jy], :auto); delim=';')
+        #CSV.write(joinpath(out_dir,"generation","Cons",string(m),string(scen_ts,"_",market_design,"_D_ela_fix_",m,"_year",jy,".csv")), DataFrame(D_fix_ela,:auto), delim=";")
+
+        # total demand load 
+        # D_ELA + D_fixed
+        # consumer PV
+        total_cons = zeros(nT, nR)
+        PV_total = zeros(nT, nR)
+        D_fixed = zeros(nT,nR)
+        D_ela = zeros(nT,nR)
+        D_fix_ela = zeros(nT,nR)
+        tot_charge = zeros(nT,nR)
+        tot_discharge = zeros(nT,nR)
+        tot_SOC = zeros(nT,nR)
+
+        for m in agents[:Cons]
+            total_cons .+= results["g"][m][end][:,:,jy]
+            PV_total .+= mdict[m].ext[:timeseries][:PV][:,:,jy]
+            D_fixed .+= mdict[m].ext[:parameters][:D_fixed][:,:,jy]
+            D_ela .+= results["D_ELA"][m][end][:,:,jy]
+            D_fix_ela .+= D_fixed .+ D_ela
+            tot_charge .+= results["charge"][m][end][:,:,jy]
+            tot_discharge .+= results["discharge"][m][end][:,:,jy]
+            tot_SOC .+= results["SOC"][m][end][:,:,jy]
+        end
+
+        gen_total = zeros(nT,nR)
+        for m in agents[:Gen]
+            gen_total .+=results["g"][m][end][:,:,jy]
+        end
+        total_demand = -(EOM["D"][:,:,jy])
+        
+        mat_outp = hcat(collect(1:nT*nR), vec(gen_total),vec(total_demand), vec(total_cons),vec(PV_total),vec(tot_SOC),vec(tot_charge),vec(tot_discharge))
+        colnames = Symbol.(["Timestep","total_gen", "total_demand", "total_cons", "PV_cons","tot_SOC","tot_charging","tot_discharging"])
+
+        df = DataFrame(mat_outp,colnames)
+        
+        CSV.write(joinpath(out_dir,"total",string(scen_ts,"_",market_design,"_all_output_", jy,".csv")), 
+        df,delim=";")
+
             # EOM
             g_out = zeros(nT*nR, EOM["nAgents"])
             mm = 1
@@ -95,12 +143,11 @@ CSV.write(joinpath(out_dir, "expressions","Gen", string(scen_ts, "_", market_des
             mm = mm+1
         end
         # volledige output matrix
-        mat_output = hcat(collect(1:nT*nR),vec(results["λ"]["EOM"][end][:,:,jy]),g_out,-vec(EOM["D"][:,:,jy]))
+        mat_output = hcat(collect(1:nT*nR),vec(results["λ"]["EOM"][end][:,:,jy]),g_out,-vec(EOM["D"][:,:,jy]), vec(PV_total))
         header_g = string.("G_", vcat(agents[:Gen], agents[:Cons]))
         CSV.write(joinpath(out_dir,"total",string(scen_ts,"_",market_design,"_total_year", jy,".csv")), 
-        DataFrame(mat_output,:auto), delim=";",header=["Timestep";"Price";header_g;"Demand"]);
+        DataFrame(mat_output,:auto), delim=";",header=["Timestep";"Price";header_g;"Demand";"Total_PV"]);
     end
-
 
 ##### Plot ADMM residuals for all iterations #####
 df = CSV.read(joinpath(out_dir, string(scen_ts,"_",market_design,"_ADMM_residuals_all.csv")), DataFrame,delim=";")
@@ -113,9 +160,19 @@ plot(df.iteration, df.primal_residual,
 
 plot!(df.iteration, df.dual_residual,
       label = "Dual residual",
+      lw = 2)
+
+if market_design == "cfd"
+    plot!(df.iteration, df.cfd_primal,
+      label = "CfD primal residual",
       lw = 2,
       linestyle = :dash)
 
+      plot!(df.iteration, df.cfd_dual,
+      label = "CfD dual residual",
+      lw = 2,
+      linestyle = :dash)
+end
 savefig(joinpath(out_dir, string(scen_ts,"_",market_design,"_ADMM_residuals_plot.png")))
 
 end
