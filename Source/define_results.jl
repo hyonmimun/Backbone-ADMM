@@ -112,11 +112,11 @@ function define_results!(data::Dict,results::Dict,ADMM::Dict,agents::Dict,market
         end
 
         # cfd totals
-       #= results["g_cfd_total"] = CircularBuffer{Array{Float64,3}}(data["CircularBufferSize"])
-        push!(results["g_cfd_total"], zeros(nT,nR,nY))
+        results["g_cfd_total"] = CircularBuffer{Array{Float64,3}}(data["CircularBufferSize"])
+        push!(results["g_cfd_total"], fill(1e-9,nT,nR,nY))
         
         results["Q_cfd_con_tot"] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])
-        push!(results["Q_cfd_con_tot"],zeros(nY)) =#
+        push!(results["Q_cfd_con_tot"],fill(1e-9,nY))
 
         #results["Q_cfd_gen_tot"] = CircularBuffer{Vector{Float64}}(data["CircularBufferSize"])
         #push!(results["Q_cfd_gen_tot"],zeros(nY))

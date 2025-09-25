@@ -30,52 +30,76 @@ year_labels = string.(sorted_years)        # ["2018","2021","2022"]
 if market_design == "EOM"
 utility_term = [collect(value.(mdict[m].ext[:expressions][:utility_term])) for m in agents[:Cons]]
 consumer_profit = [collect(value.(mdict[m].ext[:expressions][:consumer_profit])) for m in agents[:Cons]]
-consumer_costs   = [collect(value.(mdict[m].ext[:expressions][:consumer_costs]))  for m in agents[:Cons]]
-#consumer_mv   = [collect(value.(mdict[m].ext[:expressions][:consumer_mv]))      for m in agents[:Cons]]
+consumer_settlement   = [collect(value.(mdict[m].ext[:expressions][:consumer_settlement]))  for m in agents[:Cons]]
+tail_diff   = [collect(value.(mdict[m].ext[:variables][:u])) for m in agents[:Cons]]
 elseif market_design == "cfd"
     utility_term = [collect(value.(mdict[m].ext[:expressions][:utility_term])) for m in agents[:Cons]]
     consumer_profit = [collect(value.(mdict[m].ext[:expressions][:cfd_consumer_profit])) for m in agents[:Cons]]
-    consumer_costs   = [collect(value.(mdict[m].ext[:expressions][:consumer_costs]))  for m in agents[:Cons]]
-    #consumer_mv   = [collect(value.(mdict[m].ext[:expressions][:consumer_mv]))      for m in agents[:Cons]]
-end 
+    consumer_settlement   = [collect(value.(mdict[m].ext[:expressions][:consumer_settlement]))  for m in agents[:Cons]]
+    tail_diff   = [collect(value.(mdict[m].ext[:variables][:u])) for m in agents[:Cons]]
+end
 
 df_utility = DataFrame(Consumer = String.(agents[:Cons]))
 df_profit = DataFrame(Consumer = String.(agents[:Cons]))
-df_costs = DataFrame(Consumer = String.(agents[:Cons]))
-#df_mv = DataFrame(Consumer = String.(agents[:Cons]))
+df_settlement = DataFrame(Consumer = String.(agents[:Cons]))
+df_tail_diff = DataFrame(Consumer = String.(agents[:Cons]))
 
 for (y, ylab) in enumerate(year_labels)
     df_utility[!, Symbol(ylab)] = getindex.(utility_term, y)
     df_profit[!, Symbol(ylab)] = getindex.(consumer_profit, y)
-    df_costs[!, Symbol(ylab)] = getindex.(consumer_costs, y)
-    #df_mv[!, Symbol(ylab)] = getindex.(consumer_mv, y)
+    df_settlement[!, Symbol(ylab)] = getindex.(consumer_settlement, y)
+    df_tail_diff[!, Symbol(ylab)] = getindex.(tail_diff, y)
 end
 CSV.write(joinpath(out_dir, "expressions","Cons", string(scen_ts, "_", market_design, "_utility_term.csv")),df_utility; delim=";")
 CSV.write(joinpath(out_dir, "expressions","Cons", string(scen_ts, "_", market_design, "_consumer_profit.csv")),df_profit; delim=";")
-CSV.write(joinpath(out_dir, "expressions","Cons", string(scen_ts, "_", market_design, "_consumer_costs.csv")),df_costs; delim=";")
-#CSV.write(joinpath(out_dir, "expressions","Cons", string(scen_ts, "_", market_design, "_consumer_mv.csv")),df_mv; delim=";")
+CSV.write(joinpath(out_dir, "expressions","Cons", string(scen_ts, "_", market_design, "_consumer_settlement.csv")),df_settlement; delim=";")
+CSV.write(joinpath(out_dir, "expressions","Cons", string(scen_ts, "_", market_design, "_consumer_tail_diff.csv")),df_tail_diff; delim=";")
 
 # Generators
 generator_profit = [collect(value.(mdict[m].ext[:expressions][:generator_profit])) for m in agents[:Gen]]
 generator_revenue = [collect(value.(mdict[m].ext[:expressions][:generator_revenue])) for m in agents[:Gen]]
 generator_costs   = [collect(value.(mdict[m].ext[:expressions][:generator_costs]))  for m in agents[:Gen]]
-#generator_mv   = [collect(value.(mdict[m].ext[:expressions][:generator_mv]))      for m in agents[:Gen]]
+gen_tail_diff   = [collect(value.(mdict[m].ext[:variables][:u])) for m in agents[:Gen]]
 
 df_genprofit = DataFrame(Generator = String.(agents[:Gen]))
 df_genrev = DataFrame(Generator = String.(agents[:Gen]))
 df_gencosts = DataFrame(Generator = String.(agents[:Gen]))
-#df_genmv = DataFrame(Generator = String.(agents[:Gen]))
+df_gen_tail_diff = DataFrame(Generator = String.(agents[:Gen]))
 
 for (y, ylab) in enumerate(year_labels)
     df_genprofit[!, Symbol(ylab)] = getindex.(generator_profit, y)
     df_genrev[!, Symbol(ylab)] = getindex.(generator_revenue, y)
     df_gencosts[!, Symbol(ylab)] = getindex.(generator_costs, y)
-    #df_genmv[!, Symbol(ylab)] = getindex.(generator_mv, y)
+    df_gen_tail_diff[!, Symbol(ylab)] = getindex.(gen_tail_diff, y)
 end
 CSV.write(joinpath(out_dir, "expressions","Gen", string(scen_ts, "_", market_design, "_generator_profit.csv")),df_genprofit; delim=";")
 CSV.write(joinpath(out_dir, "expressions","Gen", string(scen_ts, "_", market_design, "_generator_revenue.csv")),df_genrev; delim=";")
 CSV.write(joinpath(out_dir, "expressions","Gen", string(scen_ts, "_", market_design, "_generator_costs.csv")),df_gencosts; delim=";")
-#CSV.write(joinpath(out_dir, "expressions","Gen",string(scen_ts, "_", market_design, "_generator_mv.csv")),df_genmv; delim=";")
+CSV.write(joinpath(out_dir, "expressions","Gen",string(scen_ts, "_", market_design, "_generator_tail_diff.csv")),df_gen_tail_diff; delim=";")
+
+CVAR = zeros(length(agents[:Cons]))
+VAR = zeros(length(agents[:Cons]))
+for (mm, m) in enumerate(agents[:Cons])
+    CVAR[mm] = value.(mdict[m].ext[:expressions][:CVAR])
+    VAR[mm] = value.(mdict[m].ext[:variables][:α])
+end
+CSV.write(joinpath(out_dir,"expressions","Cons","$(scen_ts),$(market_design),CVAR_cons.csv"),
+    DataFrame(permutedims(CVAR), string.("CVAR_", agents[:Cons])))
+
+CSV.write(joinpath(out_dir,"expressions","Cons","$(scen_ts),$(market_design),VAR_cons.csv"),
+DataFrame(permutedims(VAR), string.("VAR_", agents[:Cons])))
+
+gen_CVAR= zeros(length(agents[:Gen]))
+gen_VAR = zeros(length(agents[:Gen]))
+for (mm, m) in enumerate(agents[:Cons])
+    gen_CVAR[mm] = value.(mdict[m].ext[:expressions][:CVAR])
+    gen_VAR[mm] = value.(mdict[m].ext[:variables][:α])
+end
+CSV.write(joinpath(out_dir,"expressions","Gen","$(scen_ts),$(market_design),CVAR_gen.csv"),
+    DataFrame(permutedims(gen_CVAR), string.("CVAR_", agents[:Gen])))
+
+CSV.write(joinpath(out_dir,"expressions","Gen","$(scen_ts),$(market_design),VAR_gen.csv"),
+DataFrame(permutedims(gen_VAR), string.("VAR_", agents[:Gen])))
 
 ##### Variables for all iterations #####   
 for jy in 1:nY

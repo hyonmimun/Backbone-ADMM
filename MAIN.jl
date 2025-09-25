@@ -46,9 +46,26 @@ using Plots
 println("Define Gurobi environment...")
 println("        ")
 const GUROBI_ENV = Gurobi.Env()
+
 # set parameters:
 GRBsetparam(GUROBI_ENV, "OutputFlag", "0")   
-GRBsetparam(GUROBI_ENV, "Threads", "4")   
+GRBsetparam(GUROBI_ENV, "Threads", "4")
+
+#= Barrier + agressieve presolve
+GRBsetparam(GUROBI_ENV, "Method", "2")           # 2 = barrier
+GRBsetparam(GUROBI_ENV, "Crossover", "0")        # geen crossover
+GRBsetparam(GUROBI_ENV, "Presolve", "2")         # agressief
+GRBsetparam(GUROBI_ENV, "BarHomogeneous", "1")   # robuuster numeriek
+GRBsetparam(GUROBI_ENV, "NumericFocus", "1")     # 1–2 als je numerieke waarschuwingen ziet
+GRBsetparam(GUROBI_ENV, "FeasibilityTol", "1e-6")
+GRBsetparam(GUROBI_ENV, "OptimalityTol", "1e-6") =#
+
+#=GRBsetparam(GUROBI_ENV, "Method", "1")           # 1 = dual simplex
+GRBsetparam(GUROBI_ENV, "Presolve", "1")         # iets minder agressief; helpt reopt
+GRBsetparam(GUROBI_ENV, "NumericFocus", "1")
+GRBsetparam(GUROBI_ENV, "FeasibilityTol", "1e-6")
+GRBsetparam(GUROBI_ENV, "OptimalityTol", "1e-6") =#
+
 println("        ")
 
 # Include functions
@@ -98,7 +115,7 @@ else
     stop_scen = 2
 end =#
 
-scen_number = 1 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the scenario you'd like to study
+scen_number = 4 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the scenario you'd like to study
 #for scen_number in range(start_scen, stop=stop_scen, step=1)
 
 println("    ")
@@ -159,7 +176,7 @@ sens_number = 1 # for debugging purposes, comment the for-loop and replace it by
 # for sens_number in range(1,stop=numb_of_sens+1,step=1) 
 if sens_number >= 2
     println("    ") 
-    println(string("#                                  Sensitivity ",sens_number-1,"                                      #"))
+    println(string("#                                  Sensitivity ",sens_number,"                                      #"))
     parameter = split(sensitivity_overview[sens_number-1,:Parameter])
     if length(parameter) == 2
         data[parameter[1]][parameter[2]] = sensitivity_overview[sens_number-1,:Scaling]*data[parameter[1]][parameter[2]]

@@ -60,7 +60,7 @@ cfd_premium_con_year  = sum_over_agents_vec(results["cfd_premium"],      consume
 cfd_penalty_gen_year  = sum_over_agents_vec(results["cfd_penalty_gen"],  generators, nY)
 cfd_penalty_con_year  = sum_over_agents_vec(results["cfd_penalty_con"],  consumers,  nY)
 
-#g_cfd_total_year      = sum_tr_per_year(results["g_cfd_total"])          # uit 3D → per jaar
+g_cfd_total_year      = sum_tr_per_year(results["g_cfd_total"])          # uit 3D → per jaar
 
 df = DataFrame(
     Year                  = years,
@@ -70,7 +70,7 @@ df = DataFrame(
     ζ_cfd                 = ζ_cfd_vec,
     Q_cfd_gen_tot         = Q_cfd_gen_year,
     Q_cfd_con_tot         = Q_cfd_con_year,
-    #g_cfd_total           = g_cfd_total_year,
+    g_cfd_total           = g_cfd_total_year,
     cfd_premium_gen_tot   = cfd_premium_gen_year,
     cfd_premium_con_tot   = cfd_premium_con_year,
     cfd_penalty_gen_tot   = cfd_penalty_gen_year,

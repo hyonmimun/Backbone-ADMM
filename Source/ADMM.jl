@@ -14,33 +14,40 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
     
     for iter in iterations
         if convergence == 0 # convergence not reached yet; loop continues solving
-           #= if market_design == "cfd"
+           if market_design == "cfd"
                         # fix Q_cfd_con_tot on the previous iteration value whilst solving
-                        Q_cfd_con_tot_prev = isempty(results["Q_cfd_con_tot"]) ? fill(1e-9, nY) : copy(last(results["Q_cfd_con_tot"]))
+                        Q_cfd_con_tot_prev = last(results["Q_cfd_con_tot"])
+                        
                         # Totale cfd-productie (3D: tijd × repr. dag × jaar)
-                        g_cfd_total_prev = isempty(results["g_cfd_total"]) ? fill(1e-9,nT, nR, nY) : copy(last(results["g_cfd_total"]))
-
+                        g_cfd_total_prev = last(results["g_cfd_total"])
+                        
+                        #println("Q_tot_pre_update = ", Q_cfd_con_tot_prev)
+                        
                         # Zet snapshots in elk relevant agent-model
                         for m in agents[:Cons]
                         mdict[m].ext[:parameters][:Q_cfd_con_tot] = Q_cfd_con_tot_prev  # zelfde snapshot voor iedereen
-                        mdict[m].ext[:parameters][:g_cfd_total]   = g_cfd_total_prev
+                        mdict[m].ext[:parameters][:g_cfd_total] = g_cfd_total_prev
                         end
-            end =#
+                        
+            end
             
             # Multi-threaded version
             @sync for m in agents[:all]
                 # created subroutine to allow multi-threading to solve agents' decision problems
                 @spawn ADMM_subroutine!(m,results,ADMM,EOM,mdict[m],agents,TO,market_design)
             end
-          #=  if market_design == "cfd"
+            
+          if market_design == "cfd"
                     # Som over alle consumenten → vector (nY)
                     Q_cfd_con_tot_new = sum((last(results["Q_cfd_con"][mc]) for mc in agents[:Cons]))
                     push!(results["Q_cfd_con_tot"], Q_cfd_con_tot_new)
 
+                    #println("Q_tot_post_update = ", Q_cfd_con_tot_new)
+
                     # Som over alle generators → array (nT,nR,nY)
                     g_cfd_total_new = sum((last(results["g_cfd"][mg]) for mg in agents[:Gen]))
                     push!(results["g_cfd_total"], g_cfd_total_new)
-            end =#
+            end
 
             end
             # Imbalances
@@ -68,7 +75,9 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
                 push!(ADMM["Residuals"]["Dual"]["EOM"], sqrt(sum(sum((ADMM["ρ"]["EOM"][end]*((results["g"][m][end]-sum(results["g"][mstar][end] for mstar in agents[:eom])./(EOM["nAgents"]+1)) - (results["g"][m][end-1]-sum(results["g"][mstar][end-1] for mstar in agents[:eom])./(EOM["nAgents"]+1)))).^2 for m in agents[:eom]))))
                 
              if market_design == "cfd"
-                    push!(ADMM["Residuals"]["Dual"]["cfd"], sqrt(
+                #push!(ADMM["Residuals"]["Dual"]["cfd"], ADMM["ρ"]["cfd"][end] * sqrt( length(agents[:Gen]) * sum(abs2, ADMM["Qbar_gen"][end] .- Qbar_gen[end]) + length(agents[:Cons]) * sum(abs2, Qbar_con .- ADMM["Qbar_con"][end]))
+
+                #=sqrt(
                         sum( sum(abs2, ADMM["ρ"]["cfd"][end] .* (
                                 (results["Q_cfd_gen"][m][end]   - sum(results["Q_cfd_gen"][mm][end] for mm in agents[:Gen])./length(agents[:Gen])) -
                                 (results["Q_cfd_gen"][m][end-1] - sum(results["Q_cfd_gen"][mm][end-1] for mm in agents[:Gen])./length(agents[:Gen]))
@@ -78,7 +87,9 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
                                 (results["Q_cfd_con"][c][end]   - sum(results["Q_cfd_con"][ci][end] for ci in agents[:Cons])./length(agents[:Cons])) -
                                 (results["Q_cfd_con"][c][end-1] - sum(results["Q_cfd_con"][ci][end-1] for ci in agents[:Cons])./length(agents[:Cons]))
                             )) for c in agents[:Cons])
-                    ))
+                )) =#
+                        #push!(ADMM["Residuals"]["Dual"]["cfd"],
+                         #   sqrt(sum((ADMM["ρ"]["cfd"][end] .* (ADMM["Imbalances"]["cfd"][end] .- ADMM["Imbalances"]["cfd"][end-1])).^2))
                 end
             end
 

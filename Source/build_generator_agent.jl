@@ -20,73 +20,81 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
     C = mod.ext[:parameters][:C] # GW 
     λ_EOM = mod.ext[:parameters][:λ_EOM] # EOM prices
     g_bar = mod.ext[:parameters][:g_bar] # average/consensus 
-    ρ_EOM = mod.ext[:parameters][:ρ_EOM] # 10^5 €/GW, rho penalty
+    ρ_EOM = mod.ext[:parameters][:ρ_EOM] # 10^6 €, rho penalty
     W = mod.ext[:parameters][:W] # weight of representative day
     P = mod.ext[:parameters][:P] 
-    β = mod.ext[:parameters][:β] # 10^5 €
+    β = mod.ext[:parameters][:β] #
+    γ = mod.ext[:parameters][:γ] # weight of expected revenues and CVAR
 
     # Create variables
-    g = mod.ext[:variables][:g] = @variable(mod, [jh=JH, jd=JD, jy=JY], lower_bound=0, base_name="generation")
+    g = mod.ext[:variables][:g] = @variable(mod, [jh=JH, jd=JD, jy=JY], lower_bound=0, base_name="generation") #GWh
+    α = mod.ext[:variables][:α] = @variable(mod, base_name = "VaR") # 10^6€
+    u = mod.ext[:variables][:u] = @variable(mod, [jy = JY], lower_bound = 0, base_name = "mean tail risk") # 10^6 €
 
     # Expressions (per year)
-    generator_costs = mod.ext[:expressions][:generator_costs] = @expression(mod, [jy = JY], sum(W[jd,jy] * (A/2*g[jh, jd, jy]^2 + B*g[jh, jd, jy]) for jh in JH, jd in JD))
-    generator_revenue = mod.ext[:expressions][:generator_revenue] = @expression(mod, [jy = JY], sum(W[jd,jy] * λ_EOM[jh, jd, jy] * g[jh, jd, jy] for jh in JH, jd in JD))
-    generator_profit = mod.ext[:expressions][:generator_profit] = @expression(mod, [jy = JY], generator_revenue[jy] - generator_costs[jy])
-    generator_penalty = mod.ext[:expressions][:generator_penalty] = @expression(mod, [jy=JY], sum(ρ_EOM/2* W[jd,jy] * (g[jh, jd, jy] - g_bar[jh, jd, jy])^2 for jh in JH, jd in JD))
+    generator_costs = mod.ext[:expressions][:generator_costs] = @expression(mod, [jy = JY], sum(W[jd,jy] * (A/2*g[jh, jd, jy]^2 + B*g[jh, jd, jy]) for jh in JH, jd in JD)) # 10^6€
+    generator_revenue = mod.ext[:expressions][:generator_revenue] = @expression(mod, [jy = JY], sum(W[jd,jy] * λ_EOM[jh, jd, jy] * g[jh, jd, jy] for jh in JH, jd in JD)) # 10^6€
+    generator_profit = mod.ext[:expressions][:generator_profit] = @expression(mod, [jy = JY], generator_revenue[jy] - generator_costs[jy]) # 10^6€
+    generator_penalty = mod.ext[:expressions][:generator_penalty] = @expression(mod, [jy=JY], sum(ρ_EOM/2* W[jd,jy] * (g[jh, jd, jy] - g_bar[jh, jd, jy])^2 for jh in JH, jd in JD)) # 10^6€
     
     # Risk aversion
-    exp_gen_prof = mod.ext[:expressions][:exp_gen_prof] = @expression(mod, sum(P[jy]*generator_profit[jy] for jy in JY))
-    generator_var = mod.ext[:expressions][:generator_var] = @expression(mod, sum(P[jy]* (generator_profit[jy] - exp_gen_prof)^2 for jy in JY))
-    generator_mv = mod.ext[:expressions][:generator_mv] = @expression(mod, β * generator_var) 
+    CVAR = mod.ext[:expressions][:CVAR] = @expression(mod, α - ((1/β) * sum(P[jy] * u[jy] for jy in JY))) # 10^6€
+    
+    if market_design == "EOM"
+        # Build objective expression (over all years) # 10^6€
+        objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
+            - γ * sum(P[jy]* generator_profit[jy] for jy in JY) # minimizing total cost of energy generation
+            - (1 - γ) * CVAR
+            + sum(P[jy]*generator_penalty[jy] for jy in JY)
+        )
+        # CVAR constraint
+        if γ < 1
+            mod.ext[:constraints][:VAR_threshold] = @constraint(mod, [jy = JY],
+            α - generator_profit[jy] <= u[jy] )
+        end
 
-    # Build objective expression (over all years)
-    objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
-        - sum(P[jy]*generator_profit[jy] for jy in JY) # minimizing total cost of energy generation
-        + sum(P[jy]*generator_penalty[jy] for jy in JY)
-        + generator_mv
-    )
-
-    if market_design == "cfd"
+    elseif market_design == "cfd"
 
         # cfd parameters
-        λ_cfd = mod.ext[:parameters][:λ_cfd]
-        ζ_cfd = mod.ext[:parameters][:ζ_cfd]
-        Q_cfd_bar = mod.ext[:parameters][:Q_cfd_bar]
-        ρ_cfd = mod.ext[:parameters][:ρ_cfd]
+        λ_cfd = mod.ext[:parameters][:λ_cfd] # 10^6€/GWh
+        ζ_cfd = mod.ext[:parameters][:ζ_cfd] # 10^6€/GW???
+        Q_cfd_bar = mod.ext[:parameters][:Q_cfd_bar] # GW???
+        ρ_cfd = mod.ext[:parameters][:ρ_cfd] # 10^6€/GW^2
 
         # cfd variables
-        Q_cfd_gen = mod.ext[:variables][:Q_cfd_gen] = @variable(mod,[jy=JY], lower_bound=0, base_name="CfD_contracted_capacity") # cfd contracted capacity [GW]
+        Q_cfd_gen = mod.ext[:variables][:Q_cfd_gen] = @variable(mod,[jy=JY], lower_bound=0, base_name="CfD_contracted_capacity") # cfd contracted capacity [GW/year]
         g_cfd = mod.ext[:variables][:g_cfd] = @variable(mod, [jh=JH, jd=JD, jy=JY], lower_bound=0, base_name="CfD_generation") # individual generator's generation under cfd [GWh]
 
         # cfd expressions (per year)
-        cfd_payout_gen = mod.ext[:expressions][:cfd_payout_gen] = @expression(mod, [jy=JY], sum(W[jd,jy]* (λ_cfd - λ_EOM[jh,jd,jy]) * g_cfd[jh,jd,jy] for jh in JH, jd in JD))
-        cfd_premium_gen = mod.ext[:expressions][:cfd_premium_gen] = @expression(mod,[jy=JY], ζ_cfd[jy] * Q_cfd_gen[jy])
-        cfd_penalty_gen = mod.ext[:expressions][:cfd_penalty_gen] = @expression(mod,[jy=JY], ρ_cfd/2 * (Q_cfd_gen[jy] - Q_cfd_bar[jy])^2) # delta between generator's contracted capacity and the market average NB: not time dependent
-        cfd_generator_profit = mod.ext[:expressions][:cfd_generator_profit] = @expression(mod,[jy=JY], cfd_payout_gen[jy] + generator_profit[jy] + cfd_premium_gen[jy])
-        
-        # Risk aversion
-        exp_cfd_gen = mod.ext[:expressions][:exp_cfd_gen] = @expression(mod, sum(P[jy]*cfd_generator_profit[jy] for jy in JY))
-        cfd_gen_var = mod.ext[:expressions][:cfd_gen_var] = @expression(mod, sum(P[jy]*(cfd_generator_profit[jy] - exp_cfd_gen)^2 for jy in JY))
-        cfd_gen_mv = mod.ext[:expressions][:cfd_gen_mv] = @expression(mod, β * cfd_gen_var)
+        cfd_payout_gen = mod.ext[:expressions][:cfd_payout_gen] = @expression(mod, [jy=JY], sum(W[jd,jy]* (λ_cfd - λ_EOM[jh,jd,jy]) * g_cfd[jh,jd,jy] for jh in JH, jd in JD)) # 10^6€
+        cfd_premium_gen = mod.ext[:expressions][:cfd_premium_gen] = @expression(mod,[jy=JY], ζ_cfd[jy] * Q_cfd_gen[jy]) # 10^6€
+        cfd_penalty_gen = mod.ext[:expressions][:cfd_penalty_gen] = @expression(mod,[jy=JY], ρ_cfd/2 * (Q_cfd_gen[jy] - Q_cfd_bar[jy])^2) # delta between generator's contracted capacity and the market average NB: not time dependent # 10^6€
+        cfd_generator_profit = mod.ext[:expressions][:cfd_generator_profit] = @expression(mod,[jy=JY], cfd_payout_gen[jy] + generator_profit[jy] + cfd_premium_gen[jy]) # 10^6€
 
         # cfd objective (over all years)
         objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
-        - sum(P[jy] * cfd_generator_profit[jy] for jy in JY)
+        - γ * sum(P[jy] * cfd_generator_profit[jy] for jy in JY)
+        - (1 - γ) * CVAR
         + sum(P[jy] * generator_penalty[jy] for jy in JY)
-        + sum(P[jy] * cfd_penalty_gen[jy] for jy in JY)
-        + cfd_gen_mv
-        )
+        + sum(P[jy] * cfd_penalty_gen[jy] for jy in JY))
 
         # cfd related constraints
-        mod.ext[:constraints][:cfd_installed_cap] = @constraint(mod, [jy=JY], Q_cfd_gen[jy] <= C) # cfd contracted capacity cannot exceed installed capacity
-        mod.ext[:constraints][:g_cfd] = @constraint(mod, [jh=JH, jd=JD, jy=JY], g_cfd[jh,jd,jy] == AF[jh,jd,jy] * Q_cfd_gen[jy])
-        #mod.ext[:constraints][:gen_cfd] = @constraint(mod, [jh=JH, jd=JD, jy=JY], g_cfd[jh,jd,jy] <= g[jh,jd,jy])
+        mod.ext[:constraints][:cfd_installed_cap] = @constraint(mod, [jy=JY], Q_cfd_gen[jy] <= C) # cfd contracted capacity cannot exceed installed capacity #GW
+        mod.ext[:constraints][:g_cfd] = @constraint(mod, [jh=JH, jd=JD, jy=JY], g_cfd[jh,jd,jy] == AF[jh,jd,jy] * Q_cfd_gen[jy]) # GWh
+        mod.ext[:constraints][:gen_cfd] = @constraint(mod, [jh=JH, jd=JD, jy=JY], g_cfd[jh,jd,jy] <= g[jh,jd,jy]) # CfD generation cannot exceed actual production #GWh
+        
+        # CVAR constraint      
+        if γ < 1
+        mod.ext[:constraints][:VAR_threshold] = @constraint(mod, [jy = JY],
+        α - cfd_generator_profit[jy] <= u[jy] )
+    end
     end
     
     mod.ext[:objective] = @objective(mod, Min, objective_generator)
     
     mod.ext[:constraints][:cap_limit] = @constraint(mod, [jh=JH, jd=JD, jy=JY],
-        g[jh,jd,jy] <=  AC[jh,jd,jy]
+        g[jh,jd,jy] <=  AC[jh,jd,jy] # GWh
         )
+
     return mod
 end

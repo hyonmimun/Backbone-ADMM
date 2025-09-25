@@ -11,10 +11,10 @@ function define_consumer_parameters!(mod::Model, data::Dict, ts::Dict, market_de
 
     # Parameters - note consumers are rescaled (total number of consumers x share of this type of consumer)
     D_consumers = data["totConsumers"]*data["Share"].*
-    [ts[jy][!,Symbol(data["D"])][idx(jy,jd,jh)] for jh=1:nT, jd=1:nR, jy=1:nY]/1000 # GW demand profile for segment
+    [ts[jy][!,Symbol(data["D"])][idx(jy,jd,jh)] for jh=1:nT, jd=1:nR, jy=1:nY]/10^3 # GWh demand profile for segment
 
     D_PV = data["totConsumers"]*data["Share"]*data["PV_cap"].*
-    [ts[jy][!,Symbol(data["PV_AF"])][idx(jy,jd,jh)]/1000 for jh=1:nT, jd=1:nR, jy=1:nY] # GWp
+    [ts[jy][!,Symbol(data["PV_AF"])][idx(jy,jd,jh)]/10^3 for jh=1:nT, jd=1:nR, jy=1:nY] # GWp
 
     mod.ext[:timeseries][:PV] = D_PV
 
@@ -22,7 +22,7 @@ function define_consumer_parameters!(mod::Model, data::Dict, ts::Dict, market_de
 
     mod.ext[:parameters][:D_fixed] = 0.8 .* D_consumers # Fixed demand (80%)
     mod.ext[:parameters][:D_ELA_max] = 0.2 .* D_consumers # Max elastic demand (20%)
-    mod.ext[:parameters][:WTP] = data["WTP"] # 10^3 €/GW
+    mod.ext[:parameters][:WTP] = data["WTP"]
 
     # Battery parameters
     mod.ext[:parameters][:cap_smax] = data["Battery"]["cap_smax"]  # Max battery capacity
@@ -34,15 +34,15 @@ function define_consumer_parameters!(mod::Model, data::Dict, ts::Dict, market_de
 
     if market_design == "cfd"
         # cfd parameters
-        mod.ext[:parameters][:λ_cfd] = data["lambda_cfd"] # 10^3 €/GWh (strike price)
-        mod.ext[:parameters][:g_cfd_total] = zeros(nT,nR,nY) # total generation under cfd
-        #mod.ext[:parameters][:Q_cfd_con_tot]
+        mod.ext[:parameters][:λ_cfd] = data["lambda_cfd"] # 10^6 €/GWh (strike price)
+        mod.ext[:parameters][:g_cfd_total] = fill(1e-9, nT,nR,nY) # 10^6 €/GWh total generation under cfd
         
-       #= if !haskey(mod.ext[:parameters], :Q_cfd_con_tot)
+       if !haskey(mod.ext[:parameters], :Q_cfd_con_tot)
             mod.ext[:parameters][:Q_cfd_con_tot] =
                 (haskey(results, "Q_cfd_con_tot") && !isempty(results["Q_cfd_con_tot"])) ?
                 copy(last(results["Q_cfd_con_tot"])) : fill(1e-9, length(JY))
-        end =#
+        end
     end
-end
+
     return mod
+end

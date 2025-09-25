@@ -4,26 +4,28 @@ General:
   nDays: 365 # days
   nYears: 3 # years
   totConsumers: 1000000 #  1 million consumers
-  Beta: 0 # 10^-3 GW/€
+  beta: 0.5 # tail risk
+  gamma: 1 # weight of risk-aversion [0,1]
 
 ADMM:
- rho_EOM: 1 # rho ADMM penalty term, EOM (10^3 €/GWh)
- max_iter: 1000 # maximum number of iterations
- epsilon: 0.1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
- CircularBufferSize: 2 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
+ rho_EOM: 0.001 # rho ADMM penalty term, EOM (10^6 €/GWh) 1 €/MWh
+ max_iter: 250 # maximum number of iterations
+ epsilon: 0.000001 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals. #10^6 GWh?
+ CircularBufferSize: 4 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
 
 cfd: 
-  lambda_cfd: 100 # 10^3 €/GWh
-  rho_cfd: 1 #rho penalty term, cfd (10^3 €/GWh)
+  lambda_cfd: 0.001 # 10^6 €/GWh # 50 €/MWh
+  rho_cfd: 0.01 #rho penalty term, cfd (10^6 €/GWh) 10€/MWh
   epsilon_cfd: 1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
+  seed: 1
 
 Consumers: # Set of representative consumers
   TypeA:
    Share: 0.25 # Share of consumers in overall consumer mix
    PV_cap: 0.000003 #GWp 0.003 MWp 
-   D: "CONS_LOW" # Demand timeseries that needs to be picked up
-   PV_AF: "SOLAR_SOUTH" # AF solar timeseries that needs to be picked up
-   WTP: 5000 # (10^3 €/GWh) 5000 (€/MWh)
+   D: "CONS_LOW" # GWh Demand timeseries that needs to be picked up
+   PV_AF: "SOLAR_SOUTH" # GWp AF solar timeseries that needs to be picked up
+   WTP: 5 # (10^6 €/GWh) 5000 (€/MWh)
    Battery:
     cap_smax: 0.000002 # GW (2 kW)
     EC: 0.9
@@ -34,10 +36,10 @@ Consumers: # Set of representative consumers
 
   TypeB: 
    Share: 0.5  # Share of consumers in overall consumer mix
-   PV_cap: 0.000002 # GWp 0.005 MWp 
+   PV_cap: 0.000002 # GWp 0.005 MWp
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
-   WTP: 2500 # 10^3 €/GW 250 €/MWh
+   WTP: 2.5 # 10^6 €/GW 2500 €/MWh
    Battery:
     cap_smax: 0.000001 # GW (1 kW)
     EC: 0.9
@@ -51,7 +53,7 @@ Consumers: # Set of representative consumers
    PV_cap: 0.000001 # GWp # 0.001 MWp 
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
-   WTP: 1000 # 10^3 €/GWh (100 €/MWh)
+   WTP: 1 # 10^6 €/GWh (1000 €/MWh)
    Battery:
     cap_smax: 0.000001 # GW (1 kW)
     EC: 0.9
@@ -63,34 +65,34 @@ Consumers: # Set of representative consumers
 Generators:
 # OPEX are parametrized as a/2 x g^2 + b x g 
   Baseload:
-    a: 0.008 # (10^3€/GWh)^2 (0.008 (€/MWh)^2)
-    b: 10 # 10^3 €/GWh, 10 €/MWh
+    a: 0.000000008 # (10^6€/GWh)^2 (0.008 (€/MWh)^2)
+    b: 0.01 # 10^6 €/GWh, 10 €/MWh
     C: 5 # GW (5000 MW)
 
   MidMerit:
-    a: 0.032 # 10^3 (€/GWh)^2 (0.032 €/MWh^2)
-    b: 40 # €/GWh (40 €/MWh)
+    a: 0.000000032 # 10^6 (€/GWh)^2 (0.032 €/MWh^2)
+    b: 0.04 # 10^6 €/GWh (40 €/MWh)
     C: 10 # GW (5000 MW)
 
   Peak:
-    a: 0.08 # (10^3€/GWh)^2 0.08 (€/MWh)^2
-    b: 200 # (10^3€/GWh) (200 €/MWh)
+    a: 0.00000008 # (10^6€/GWh)^2 0.08 (€/MWh)^2
+    b: 0.2 # (10^6€/GWh) (200 €/MWh)
     C: 10 # GW (5000 MW)
   
   WindOnshore:
-    a: 0 # (10^3€/GWh)^2 (€/MWh)^2
-    b: 0 # €/GWh ,€/MWh
+    a: 0 # (10^6€/GWh)^2 (€/MWh)^2
+    b: 0 # 10^6 €/GWh ,€/MWh
     C: 5 # GW (5000 MW)
     AF: "WIND_ONSHORE"
   
   WindOffshore:
-    a: 0 # (10^3€/GWh)^2 (€/MWh)^2
-    b: 0 # €/GWh ,€/MWh
+    a: 0 # (10^6€/GWh)^2 (€/MWh)^2
+    b: 0 # 10^6 €/GWh ,€/MWh
     C: 5 # GW (5000 MW)
     AF: "WIND_OFFSHORE"
   
   SolarPanels:
     a: 0 # (10^3€/GWh)^2 (€/MWh)^2
-    b: 0 # 10^3 €/GWh, €/MWh
+    b: 0 # 10^6 €/GWh, €/MWh
     C: 5 #GW (5000 MW)
     AF: "SOLAR_SOUTH"

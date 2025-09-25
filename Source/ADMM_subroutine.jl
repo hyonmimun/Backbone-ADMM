@@ -9,19 +9,59 @@ function ADMM_subroutine!(m::String,results::Dict,ADMM::Dict,EOM::Dict,mod::Mode
         mod.ext[:parameters][:ρ_EOM] = ADMM["ρ"]["EOM"][end]
 
     if market_design == "cfd"
-        # cfd consensus variables have two updates; since generators are positive in imbalance and consumers are negative in the imbalance: Q_cfd are defined as positive value in the imbalance constraint
-          if m in agents[:Gen]
-            mod.ext[:parameters][:Q_cfd_bar] = results["Q_cfd_gen"][m][end] .- (1 /(EOM["nAgents"])) * ADMM["Imbalances"]["cfd"][end]
-            push!(results["Q_cfd_bar"][m], mod.ext[:parameters][:Q_cfd_bar])
-        
-        elseif m in agents[:Cons]
-            mod.ext[:parameters][:Q_cfd_bar] = results["Q_cfd_con"][m][end] .+ (1 /(EOM["nAgents"])) * ADMM["Imbalances"]["cfd"][end]
-            push!(results["Q_cfd_bar"][m], mod.ext[:parameters][:Q_cfd_bar])
+        Qgen_sum = sum([last(results["Q_cfd_gen"][g]) for g in agents[:Gen]])
+        Qcon_sum = sum([last(results["Q_cfd_con"][c]) for c in agents[:Cons]])
+
+        Qbar_gen = Qgen_sum ./ length(agents[:Gen])
+        Qbar_con = Qcon_sum ./ length(agents[:Cons])
+
+        for g in agents[:Gen]
+            mdict[g].ext[:parameters][:Q_cfd_bar] = Qbar_gen
+            push!(results["Q_cfd_bar"][g], Qbar_gen)
         end
-        
+
+        for c in agents[:Cons]
+            mdict[c].ext[:parameters][:Q_cfd_bar] = Qbar_con
+            push!(results["Q_cfd_bar"][c], Qbar_con)
+        end
         mod.ext[:parameters][:ζ_cfd] = results["ζ"]["cfd"][end]
         mod.ext[:parameters][:ρ_cfd] = ADMM["ρ"]["cfd"][end]
     end
+
+     #= all agents see the same consensus variable
+       Qgen_sum = reduce(+, (last(results["Q_cfd_gen"][g]) for g in agents[:Gen]))
+       Qcon_sum = reduce(+, (last(results["Q_cfd_con"][c]) for c in agents[:Cons]))
+
+       Qbar = (Qgen_sum .+ Qcon_sum) ./ (EOM["nAgents"])  # ::Vector{Float64} met lengte nY
+
+        for m in agents[:eom]
+            mdict[m].ext[:parameters][:Q_cfd_bar] = Qbar
+            push!(results["Q_cfd_bar"][m], Qbar)  # als je per agent een historiek bewaart
+        end =#   
+
+        #= if m in agents[:Gen]
+                mod.ext[:parameters][:Q_cfd_bar] =
+                    results["Q_cfd_gen"][m][end] -
+                    (1 / (EOM["nAgents"])) * ADMM["Imbalances"]["CfD"][end]
+                    push!(results["Q_cfd_bar"][m], mod.ext[:parameters][:Q_cfd_bar])
+            
+            elseif m in agents[:Cons]
+                mod.ext[:parameters][:Q_cfd_bar] =
+                results["Q_cfd_con"][m][end] -
+                (1 / (EOM["nAgents"])) * ADMM["Imbalances"]["CfD"][end]
+                push!(results["Q_cfd_bar"][m], mod.ext[:parameters][:Q_cfd_bar])
+            end =#
+
+        #= cfd consensus variables have two updates; since generators are positive in imbalance and consumers are negative in the imbalance: Q_cfd are defined as positive value in the imbalance constraint
+          if m in agents[:Gen]
+            mod.ext[:parameters][:Q_cfd_bar] = results["Q_cfd_gen"][m][end] .- ADMM["Imbalances"]["cfd"][end] ./ (2 * length(agents[:Gen]))
+            push!(results["Q_cfd_bar"][m], mod.ext[:parameters][:Q_cfd_bar])
+        
+        elseif m in agents[:Cons]
+            mod.ext[:parameters][:Q_cfd_bar] = results["Q_cfd_con"][m][end] .+ ADMM["Imbalances"]["cfd"][end] ./ (2 * length(agents[:Cons])) 
+            push!(results["Q_cfd_bar"][m], mod.ext[:parameters][:Q_cfd_bar])
+        end
+    end =#
 
     # Solve agents decision problems:
     if m in agents[:Gen]
@@ -64,7 +104,7 @@ function ADMM_subroutine!(m::String,results::Dict,ADMM::Dict,EOM::Dict,mod::Mode
                     push!(results["cfd_payout"][m], collect(value.(mod.ext[:expressions][:cfd_payout])))
                     push!(results["cfd_premium"][m], collect(value.(mod.ext[:expressions][:cfd_premium])))
                     push!(results["cfd_penalty_con"][m], collect(value.(mod.ext[:expressions][:cfd_penalty_con])))
-                    #push!(results["share_cfd_con"][m], collect(value.(mod.ext[:expressions][:share_cfd_con])))
+                    push!(results["share_cfd_con"][m], collect(value.(mod.ext[:expressions][:share_cfd_con])))
                     #push!(results["Q_cfd_con_tot"][m], collect(value.(mod.ext[:parameters][:Q_cfd_con_tot])))
                 end
             end

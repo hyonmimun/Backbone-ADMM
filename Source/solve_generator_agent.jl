@@ -12,42 +12,52 @@ function solve_generator_agent!(mod::Model, market_design::AbstractString, m::St
     idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # get absolute timestep in repr days in year
 
     # Extract time series data
-    AC = mod.ext[:timeseries][:AC]
-    AF = mod.ext[:timeseries][:AF]
+    AC = mod.ext[:timeseries][:AC] # GW Available capacity of the generator 
+    AF = mod.ext[:timeseries][:AF] # Availability factor for generation
 
-        # Extract parameters
+    # Extract parameters
     A = mod.ext[:parameters][:A] 
     B = mod.ext[:parameters][:B]
-    C = mod.ext[:parameters][:C]
-    λ_EOM = mod.ext[:parameters][:λ_EOM]
-    g_bar = mod.ext[:parameters][:g_bar]
-    ρ_EOM = mod.ext[:parameters][:ρ_EOM]
-    W = mod.ext[:parameters][:W]
-    P = mod.ext[:parameters][:P]
-    β = mod.ext[:parameters][:β]
+    C = mod.ext[:parameters][:C] # GW 
+    λ_EOM = mod.ext[:parameters][:λ_EOM] # EOM prices
+    g_bar = mod.ext[:parameters][:g_bar] # average/consensus 
+    ρ_EOM = mod.ext[:parameters][:ρ_EOM] # 10^6 €/GW, rho penalty
+    W = mod.ext[:parameters][:W] # weight of representative day
+    P = mod.ext[:parameters][:P] 
+    β = mod.ext[:parameters][:β] # 10^6 €
+    γ = mod.ext[:parameters][:γ] # weight of expected revenues and CVAR
 
     # Create variables
     g = mod.ext[:variables][:g]
+    α = mod.ext[:variables][:α]
+    u = mod.ext[:variables][:u]
 
     # Expressions (per year)
     generator_costs = mod.ext[:expressions][:generator_costs] = @expression(mod, [jy = JY], sum(W[jd,jy] * (A/2*g[jh, jd, jy]^2 + B*g[jh, jd, jy]) for jh in JH, jd in JD))
-    generator_revenue = mod.ext[:expressions][:generator_revenue] = @expression(mod, [jy = JY], sum(W[jd,jy] * λ_EOM[jh, jd, jy]*g[jh, jd, jy] for jh in JH, jd in JD))
+    generator_revenue = mod.ext[:expressions][:generator_revenue] = @expression(mod, [jy = JY], sum(W[jd,jy] * λ_EOM[jh, jd, jy] * g[jh, jd, jy] for jh in JH, jd in JD))
     generator_profit = mod.ext[:expressions][:generator_profit] = @expression(mod, [jy = JY], generator_revenue[jy] - generator_costs[jy])
     generator_penalty = mod.ext[:expressions][:generator_penalty] = @expression(mod, [jy=JY], sum(ρ_EOM/2* W[jd,jy] * (g[jh, jd, jy] - g_bar[jh, jd, jy])^2 for jh in JH, jd in JD))
     
     # Risk aversion
-    exp_gen_prof = mod.ext[:expressions][:exp_gen_prof] = @expression(mod, sum(P[jy]*generator_profit[jy] for jy in JY))
-    generator_var = mod.ext[:expressions][:generator_var] = @expression(mod, sum(P[jy]* (generator_profit[jy] - exp_gen_prof)^2 for jy in JY))
-    generator_mv = mod.ext[:expressions][:generator_mv] = @expression(mod, β * generator_var) 
+    CVAR = mod.ext[:expressions][:CVAR] = @expression(mod, α - ((1/β) * sum(P[jy] * u[jy] for jy in JY)))
+    
+    if market_design == "EOM"
+        # Build objective expression (over all years)
+        objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
+            - γ * sum(P[jy]* generator_profit[jy] for jy in JY) # minimizing total cost of energy generation
+            - (1 - γ) * CVAR
+            + sum(P[jy]*generator_penalty[jy] for jy in JY)
+        )
+          # Updating CVAR constraint
+        if γ < 1
+            for jy in JY
+                delete(mod, mod.ext[:constraints][:VAR_threshold][jy])
+            end
+            mod.ext[:constraints][:VAR_threshold] = @constraint(mod, [jy = JY],
+            α - generator_profit[jy] <= u[jy] )
+        end
 
-    # Build objective expression (over all years)
-    objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
-        - sum(P[jy]*generator_profit[jy] for jy in JY)
-        + sum(P[jy]*generator_penalty[jy] for jy in JY)
-        + generator_mv
-    )
-
-    if market_design == "cfd"
+    elseif market_design == "cfd"
 
         # cfd parameters
         λ_cfd = mod.ext[:parameters][:λ_cfd]
@@ -62,29 +72,37 @@ function solve_generator_agent!(mod::Model, market_design::AbstractString, m::St
         # cfd expressions (per year)
         cfd_payout_gen = mod.ext[:expressions][:cfd_payout_gen] = @expression(mod, [jy=JY], sum(W[jd,jy]* (λ_cfd - λ_EOM[jh,jd,jy]) * g_cfd[jh,jd,jy] for jh in JH, jd in JD))
         cfd_premium_gen = mod.ext[:expressions][:cfd_premium_gen] = @expression(mod,[jy=JY], ζ_cfd[jy] * Q_cfd_gen[jy])
-        cfd_penalty_gen = mod.ext[:expressions][:cfd_penalty_gen] = @expression(mod,[jy=JY], ρ_cfd/2 * (Q_cfd_gen[jy] - Q_cfd_bar[jy])^2)
+        cfd_penalty_gen = mod.ext[:expressions][:cfd_penalty_gen] = @expression(mod,[jy=JY], ρ_cfd/2 * (Q_cfd_gen[jy] - Q_cfd_bar[jy])^2) # delta between generator's contracted capacity and the market average NB: not time dependent
         cfd_generator_profit = mod.ext[:expressions][:cfd_generator_profit] = @expression(mod,[jy=JY], cfd_payout_gen[jy] + generator_profit[jy] + cfd_premium_gen[jy])
-        
-        # Risk aversion
-        exp_cfd_gen = mod.ext[:expressions][:exp_cfd_gen] = @expression(mod,sum(P[jy]*cfd_generator_profit[jy] for jy in JY))
-        cfd_gen_var = mod.ext[:expressions][:cfd_gen_var] = @expression(mod, sum(P[jy]*(cfd_generator_profit[jy] .- exp_cfd_gen)^2 for jy in JY))
-        cfd_gen_mv = mod.ext[:expressions][:cfd_gen_mv] = @expression(mod, β * cfd_gen_var)
 
         # cfd objective (over all years)
         objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
-        - sum(P[jy] * cfd_generator_profit[jy] for jy in JY)
+        - γ * sum(P[jy] * cfd_generator_profit[jy] for jy in JY)
+        - (1 - γ) * CVAR
         + sum(P[jy] * generator_penalty[jy] for jy in JY)
-        + sum(P[jy] * cfd_penalty_gen[jy] for jy in JY)
-        + cfd_gen_mv
-        )
+        + sum(P[jy] * cfd_penalty_gen[jy] for jy in JY))
+    
+        # Updating CVAR constraint
+        if γ < 1
+            for jy in JY
+                delete(mod, mod.ext[:constraints][:VAR_threshold][jy])
+            end
+            mod.ext[:constraints][:VAR_threshold] = @constraint(mod, [jy = JY],
+            α - cfd_generator_profit[jy] <= u[jy] )
+        end
+    
     end
 
     mod.ext[:objective] = @objective(mod, Min, objective_generator) #re-register the updated objective in the JuMP model before calling the optimizer
 
-    optimize!(mod) # solves the optimization problem that is defined: sends model to the optimizer and attempts to compute the optimal. values of your decision variables
-    #= println("Termination status: ", MOI.get(mod, MOI.TerminationStatus()))
-    println("Primal status:      ", MOI.get(mod, MOI.PrimalStatus()))
-    println("Dual status:        ", MOI.get(mod, MOI.DualStatus())) =#
+    optimize!(mod)
+
+    #@show value.(mod.ext[:variables][:Q_cfd_gen])
+    #@show value.(mod.ext[:variables][:g_cfd])
+    
+    #println("Generator Termination status: ", MOI.get(mod, MOI.TerminationStatus()))
+    #println("Generator Primal status:      ", MOI.get(mod, MOI.PrimalStatus()))
+    #println("Generator Dual status:        ", MOI.get(mod, MOI.DualStatus())) 
     
     return mod # reutrns JuMP model object from the function: end function and give back model that was built
 
