@@ -34,14 +34,8 @@ function define_consumer_parameters!(mod::Model, data::Dict, ts::Dict, market_de
 
     if market_design == "cfd"
         # cfd parameters
-        mod.ext[:parameters][:λ_cfd] = data["lambda_cfd"] # 10^6 €/GWh (strike price)
-        mod.ext[:parameters][:g_cfd_total] = fill(1e-9, nT,nR,nY) # 10^6 €/GWh total generation under cfd
-        
-       if !haskey(mod.ext[:parameters], :Q_cfd_con_tot)
-            mod.ext[:parameters][:Q_cfd_con_tot] =
-                (haskey(results, "Q_cfd_con_tot") && !isempty(results["Q_cfd_con_tot"])) ?
-                copy(last(results["Q_cfd_con_tot"])) : fill(1e-9, length(JY))
-        end
+        mod.ext[:parameters][:g_cfd_total] = zeros(nT,nR,nY) # 10^6 €/GWh total generation under cfd
+        mod.ext[:parameters][:Q_cfd_con_tot] = 0
     end
 
     return mod

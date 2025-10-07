@@ -1,0 +1,10 @@
+agent_type;agent;Q_cfd;Q_cfd_total;share_cfd;Q_cfd_bar;cfd_penalty;ζ_cfd;cfd_premium
+Gen;WindOffshore;0.0;0.0;NaN;0.0;0.0;0.0;0.0
+Gen;GasTurbine;0.0;0.0;NaN;0.0;0.0;0.0;0.0
+Gen;Baseload;0.0;0.0;NaN;0.0;0.0;0.0;0.0
+Gen;Peak;0.0;0.0;NaN;0.0;0.0;0.0;0.0
+Gen;WindOnshore;0.0;0.0;NaN;0.0;0.0;0.0;0.0
+Gen;SolarPanels;0.0;0.0;NaN;0.0;0.0;0.0;0.0
+Cons;TypeC;0.0;0.0;0.0;0.0;0.0;0.0;0.0
+Cons;TypeA;0.0;0.0;0.0;0.0;0.0;0.0;0.0
+Cons;TypeB;0.0;0.0;0.0;0.0;0.0;0.0;0.0

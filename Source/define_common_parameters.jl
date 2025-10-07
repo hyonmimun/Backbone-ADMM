@@ -30,9 +30,10 @@ function define_common_parameters!(m::String,mod::Model, data::Dict, ts::Dict, a
     
     if market_design == "cfd"
     # Parameters related to the cfd
-        mod.ext[:parameters][:ζ_cfd] = zeros(nY)
-        mod.ext[:parameters][:Q_cfd_bar] = zeros(nY)
-        mod.ext[:parameters][:ρ_cfd] = data["cfd"]["rho_cfd"]
+        mod.ext[:parameters][:ζ_cfd] = 0 # 10^6€/GW/year
+        mod.ext[:parameters][:λ_cfd] = data["cfd"]["lambda_cfd"] # 10^6 €/GWh (strike price)
+        mod.ext[:parameters][:Q_cfd_bar] = 0 #  GW/year
+        mod.ext[:parameters][:ρ_cfd] = data["cfd"]["rho_cfd"] # 10^6 €/GW
     end
 
     return mod, agents

@@ -23,8 +23,8 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     D_ELA_max = mod.ext[:parameters][:D_ELA_max]  # GWh
     W = mod.ext[:parameters][:W] # weight of representative day
     P = mod.ext[:parameters][:P] # Probability of scenario
-    β = mod.ext[:parameters][:β]
-    γ = mod.ext[:parameters][:γ] # weight between profit and risk-aversion
+    β = mod.ext[:parameters][:β] # tail mass: 0.05 = worst 0.05 of profits, the smaller, the focus is on the more extreme smaller outcomes
+    γ = mod.ext[:parameters][:γ] # weight between maximizing for profit and maximizing for increasing the downside risk (1 = solely mazimize mean profits (risk-neutral), 0 = purely maximize on worst years)
 
     # Battery parameters
     cap_smax = mod.ext[:parameters][:cap_smax] # Battery capacity in GWh (kWh)
@@ -42,7 +42,7 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     discharge = mod.ext[:variables][:discharge] = @variable(mod, [jh=JH, jd=JD, jy=JY], lower_bound=0, upper_bound = wwith, base_name="discharge") #GWh
 
     # CVAR
-    α = mod.ext[:variables][:α] = @variable(mod, base_name = "VaR") # 10^6 €
+    α = mod.ext[:variables][:α] = @variable(mod, base_name = "VaR") # 10^6 € Value of Profit at Risk (boundary value)
     u = mod.ext[:variables][:u] = @variable(mod, [jy = JY], lower_bound = 0, base_name = "mean tail risk")  # profit difference of worst-case tail scenarios with respect to the VaR # 10^6 €
 
     # Create affine expressions (per year)
@@ -52,24 +52,24 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     consumer_penalty = mod.ext[:expressions][:consumer_penalty] = @expression(mod,[jy=JY], sum(ρ_EOM/2 * W[jd,jy]*(g[jh,jd,jy] - g_bar[jh,jd,jy])^2 for jh in JH, jd in JD)) # 10^6 €
     
     # Risk aversion
-    CVAR = mod.ext[:expressions][:CVAR] = @expression(mod, α - ((1/β) * sum(P[jy] * u[jy] for jy in JY))) # 10^6 €
+    CVAR = mod.ext[:expressions][:CVAR] = @expression(mod, α - ((1/β) * sum(P[jy] * u[jy] for jy in JY))) # 10^6 € = the mean profit in the worst tail of all scenarios 
 
     if market_design == "EOM"
     # Build objective function (over all years) # 10^6 €
     objective_consumer = mod.ext[:expressions][:objective_consumer] = @expression(mod,          
         - γ * sum(P[jy] * consumer_profit[jy] for jy in JY) # profit is negative = cost revenue 
-        - (1 - γ) * CVAR
+        - (1 - γ) * CVAR # maximize the mean profit in the worst tail; optimizing downside-risk 
         + sum(P[jy] * consumer_penalty[jy] for jy in JY))
 
         if γ < 1
         # CVAR constraint
         mod.ext[:constraints][:VAR_threshold] = @constraint(mod, [jy = JY],
-        α - consumer_profit[jy] <= u[jy]) 
+        α - consumer_profit[jy] <= u[jy])
         end
 
-    elseif market_design == "cfd"
+    else market_design == "cfd"
         # cfd variables
-        Q_cfd_con = mod.ext[:variables][:Q_cfd_con] = @variable(mod,[jy=JY], lower_bound=0, base_name="CfD_contracted_capacity") # cfd contracted capacity [GW]
+        Q_cfd = mod.ext[:variables][:Q_cfd] = @variable(mod, upper_bound=0, base_name="Q_cfd") # cfd contracted capacity [GW]
 
         # cfd parameters
         λ_cfd = mod.ext[:parameters][:λ_cfd]  # 10^6 €/GWh (strike price)
@@ -80,38 +80,40 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
         Q_cfd_con_tot = mod.ext[:parameters][:Q_cfd_con_tot] # Total cfd contracted capacity of all consumers, perhaps not working bc of the different iteration steps, consider using Q_cfd_gen_tot instead
 
         # cfd expressions
-        #cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * (λ_EOM[jh,jd,jy] - λ_cfd) * Q_cfd_con[jy] for jh in JH, jd in JD)) #10^6 €
+        if Q_cfd_con_tot <= 1e-9
+        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, (0))
+        else
+        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, (Q_cfd/Q_cfd_con_tot))
+        end
         
-        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod,[jy=JY], Q_cfd_con[jy] / (Q_cfd_con_tot[jy]+1e-3))
+        cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * share_cfd_con * (λ_EOM[jh,jd,jy] - λ_cfd) * g_cfd_total[jh,jd,jy] for jh in JH, jd in JD)) # 10^6€/year
         
-        cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * share_cfd_con[jy] * (λ_EOM[jh,jd,jy] - λ_cfd) * g_cfd_total[jh,jd,jy] for jh in JH, jd in JD))
-        
-        #cfd_linear_con = mod.ext[:expressions][:cfd_linear_con] = @expression(mod, [jh=JH, jd=JD, jy=JY], g_cfd_total[jh,jd,jy] / (Q_cfd_con_tot[jy] + 1e-9))
-        #cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * (λ_EOM[jh,jd,jy] - λ_cfd) * cfd_linear_con[jh,jd,jy] * Q_cfd_con[jy] for jh in JH, jd in JD))
-        
-        cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, [jy=JY], ζ_cfd[jy] * Q_cfd_con[jy]) #10^6€/year
-        cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod,[jy=JY], ρ_cfd/2 * (Q_cfd_con[jy] - Q_cfd_bar[jy])^2) # 10^6 €
-        cfd_consumer_profit = mod.ext[:expressions][:cfd_consumer_profit] = @expression(mod, [jy=JY], consumer_profit[jy] + cfd_payout[jy] - cfd_premium[jy]) # 10^6 €
+        cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * (-Q_cfd)) #10^6€
+
+        cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_cfd/2 * (Q_cfd - Q_cfd_bar)^2) # GW
+
+        cfd_consumer_profit = mod.ext[:expressions][:cfd_consumer_profit] = @expression(mod, [jy=JY], consumer_profit[jy] + cfd_payout[jy]) 
+        # 10^6 €/year
 
         # Redefine objective for cfd scenario
         objective_consumer = mod.ext[:expressions][:objective_consumer] = @expression(mod,            
-            - γ * sum(P[jy]*cfd_consumer_profit[jy] for jy in JY)
+            - γ * (sum(P[jy] * cfd_consumer_profit[jy] for jy in JY) + cfd_premium)
             - (1 - γ) * CVAR
-            + sum(P[jy]*consumer_penalty[jy] for jy in JY)
-            + sum(P[jy]*cfd_penalty_con[jy] for jy in JY)
+            + sum(P[jy] * consumer_penalty[jy] for jy in JY)
+            + cfd_penalty_con
         )
             
         if γ < 1
             # CVAR constraint
             mod.ext[:constraints][:VAR_threshold] = @constraint(mod, [jy = JY],
-            α - cfd_consumer_profit[jy] <= u[jy]) 
+            α - cfd_consumer_profit[jy] <= u[jy])
         end
         
-        mod.ext[:constraints][:cfd_demand_constraint] = @constraint(mod, [jy=JY],
-        Q_cfd_con[jy] <= sum(D_fixed[jh,jd,jy] + D_ELA_max[jh,jd,jy] for jh in JH, jd in JD)
-        )
-        #mod.ext[:constraints][:share_cap] = @constraint(mod, [jy=JY], share_cfd_con[jy] <= 1)
-
+        #mod.ext[:constraints][:cfd_demand_constraint] = @constraint(mod, [jy=JY], Q_cfd[jy] <= sum(D_fixed[jh,jd,jy] + D_ELA_max[jh,jd,jy] for jh in JH, jd in JD))
+        #mod.ext[:constraints][:share_cap] = @constraint(mod, [jy=JY], 0 <= share_cfd_con[jy] <= 1)
+        
+        #mod.ext[:constraints][:share_cap_upper] = @constraint(mod, [jy=JY], share_cfd_con[jy] <= 1)
+        #mod.ext[:constraints][:share_cap_lower] = @constraint(mod, [jy=JY], share_cfd_con[jy] >= 0)
     end
     
     mod.ext[:objective] = @objective(mod, Min, objective_consumer)

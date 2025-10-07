@@ -29,10 +29,11 @@ ENV["GUROBI_HOME"] = raw"C:\Users\<jouwnaam>\Miniconda3\envs\gurobi_env"
 ENV["PATH"] = ENV["GUROBI_HOME"] * "\\Library\\bin;" * ENV["PATH"]
 
 #using Pkg
-#Pkg.add("Plots")
+#Pkg.add("LinearAlgebra")
 
 # Include packages 
 using JuMP, Gurobi # Optimization packages
+#using LinearAlgebra
 using DataFrames, CSV, YAML, DataStructures # dataprocessing
 using ProgressBars, Printf # progress bar
 using TimerOutputs # profiling 
@@ -51,21 +52,6 @@ const GUROBI_ENV = Gurobi.Env()
 GRBsetparam(GUROBI_ENV, "OutputFlag", "0")   
 GRBsetparam(GUROBI_ENV, "Threads", "4")
 
-#= Barrier + agressieve presolve
-GRBsetparam(GUROBI_ENV, "Method", "2")           # 2 = barrier
-GRBsetparam(GUROBI_ENV, "Crossover", "0")        # geen crossover
-GRBsetparam(GUROBI_ENV, "Presolve", "2")         # agressief
-GRBsetparam(GUROBI_ENV, "BarHomogeneous", "1")   # robuuster numeriek
-GRBsetparam(GUROBI_ENV, "NumericFocus", "1")     # 1–2 als je numerieke waarschuwingen ziet
-GRBsetparam(GUROBI_ENV, "FeasibilityTol", "1e-6")
-GRBsetparam(GUROBI_ENV, "OptimalityTol", "1e-6") =#
-
-#=GRBsetparam(GUROBI_ENV, "Method", "1")           # 1 = dual simplex
-GRBsetparam(GUROBI_ENV, "Presolve", "1")         # iets minder agressief; helpt reopt
-GRBsetparam(GUROBI_ENV, "NumericFocus", "1")
-GRBsetparam(GUROBI_ENV, "FeasibilityTol", "1e-6")
-GRBsetparam(GUROBI_ENV, "OptimalityTol", "1e-6") =#
-
 println("        ")
 
 # Include functions
@@ -82,7 +68,6 @@ include(joinpath(home_dir,"Source","solve_consumer_agent.jl"))
 include(joinpath(home_dir,"Source","solve_generator_agent.jl"))
 include(joinpath(home_dir,"Source","update_rho.jl"))
 include(joinpath(home_dir,"Source","save_results.jl"))
-# include(joinpath(home_dir,"Processing","cfd_results_processing.jl"))
 
 # Overview scenarios
 scenario_overview = CSV.read(joinpath(home_dir,"overview_scenarios.csv"),DataFrame,delim=";")
@@ -115,7 +100,7 @@ else
     stop_scen = 2
 end =#
 
-scen_number = 4 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the scenario you'd like to study
+scen_number = 3 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the scenario you'd like to study
 #for scen_number in range(start_scen, stop=stop_scen, step=1)
 
 println("    ")
@@ -126,25 +111,19 @@ println(string("######################                  Scenario ",scen_number,"
 ## 1. Read associated input for this simulation
 scenario_overview_row = scenario_overview[scen_number,:]
 market_design = scenario_overview_row["market_design"]
-scen_ts = scenario_overview_row["scen_ts"]
 
 # Data common to all scenarios data 
 data = YAML.load_file(joinpath(home_dir,"Input","config.yaml"))
 ts = Dict()
 order_matrix = Dict()
 repr_days = Dict()
-years = Dict(1 => 2018, 2 => 2021, 3 => 2022) # validation CVAR
+#years = Dict(1 => 2018, 2 => 2021, 3 => 2022) # validation CVAR
+years = Dict(1 => "2018_base", 2 => "2018_high", 3 => "2018_low", 4 => "2021_base", 5 => "2021_high", 6 => "2021_low", 7 => "2022_base", 8 => "2022_high", 9 => "2022_low") # all scenarios at once
 
 for yr in keys(years)
-    ts[yr] = CSV.read(joinpath(home_dir, "Input", "timeseries",string(years[yr]),"timeseries_$(years[yr])_$(scen_ts).csv"), 
-    delim=",", DataFrame)
-    order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]),string("ordering_variable_",years[yr],
-    ".csv")), delim=",", DataFrame)
-    repr_days[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]), string("decision_variables_short_",years[yr],".csv")), delim=",", DataFrame)
-
-     y = years[yr]
-    ts[yr] = CSV.read(joinpath(home_dir, "Input", "timeseries", string(y),"timeseries_$(y)_$(scen_ts).csv"),DataFrame)
-    println("→ Loading timeseries for year $y : timeseries_$(y)_$(scen_ts).csv")
+    ts[yr] = CSV.read(joinpath(home_dir, "Input", "timeseries","timeseries_$(years[yr]).csv"), delim=",", DataFrame)
+    order_matrix[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]),string("ordering_variable.csv")), delim=",", DataFrame)
+    repr_days[yr] = CSV.read(joinpath(home_dir, "Input", string("output_",years[yr]), string("decision_variables_short.csv")), delim=",", DataFrame)
 end
 
 # Create folder for results
@@ -172,7 +151,7 @@ else
 end
 
 # Sensitivity analysis
-sens_number = 1 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the sensitivity you'd like to study
+sens_number = 2 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the sensitivity you'd like to study
 # for sens_number in range(1,stop=numb_of_sens+1,step=1) 
 if sens_number >= 2
     println("    ") 
@@ -183,12 +162,11 @@ if sens_number >= 2
     elseif length(parameter) == 3
         data[parameter[1]][parameter[2]][parameter[3]] = sensitivity_overview[sens_number-1,:Scaling]*data[parameter[1]][parameter[2]][parameter[3]]
     else
-        printnl("warning! Sensitivity analysis is not well defined!")
+        println("warning! Sensitivity analysis is not well defined!")
     end
 end
 
 println(" Market design : ", market_design)
-println(" Timeseries : ", scen_ts)
 println("    ")
 println("Including all required input data: done")
 println("   ")
@@ -197,7 +175,7 @@ println("   ")
 agents = Dict()
 agents[:Gen] = [id for id in keys(data["Generators"])] 
 agents[:Cons] = [id for id in keys(data["Consumers"])]
-agents[:all] = union(agents[:Gen],agents[:Cons]) # all agents in the game  
+agents[:all] = union(agents[:Gen],agents[:Cons]) # all agents in the game
 agents[:eom] = union(agents[:Gen],agents[:Cons]) # agents participating in the EOM                           
 mdict = Dict(i => Model(optimizer_with_attributes(() -> Gurobi.Optimizer(GUROBI_ENV))) for i in agents[:all])
 
@@ -245,7 +223,7 @@ results = Dict()
 ADMM = Dict()
 TO = TimerOutput()
 define_results!(merge(data["General"],data["ADMM"],data["cfd"]),results,ADMM,agents, market_design) # initialize structure of results, only those that will be stored in each iteration
-ADMM!(results,ADMM,EOM,mdict,agents,scenario_overview_row,data,TO, market_design)                 # calculate equilibrium 
+ADMM!(results,ADMM,EOM,mdict,agents,scenario_overview_row,data,TO, market_design, years)                 # calculate equilibrium 
 ADMM["walltime"] =  TimerOutputs.tottime(TO)*10^-9/60                              # wall time 
 
 println(string("Done!"))
@@ -259,22 +237,21 @@ println(string("        "))
 if market_design == "cfd"
     println(string("RP cfd: ",  ADMM["Residuals"]["Primal"]["cfd"][end], " -- Tolerance: ",ADMM["Tolerance"]["cfd"]))
     println(string("RD cfd: ",  ADMM["Residuals"]["Dual"]["cfd"][end], " -- Tolerance: ",ADMM["Tolerance"]["cfd"]))
-    println("Σ Q_cfd_gen = ", sum(results["Q_cfd_gen"][m][end] for m in agents[:Gen]))
-    println("Σ Q_cfd_con = ", sum(results["Q_cfd_con"][m][end] for m in agents[:Cons]))
+    println(string("        "))
+    println("Σ Q_cfd_gen = ", sum(results["Q_cfd"][m][end] for m in agents[:Gen]))
+    println("Σ Q_cfd_con = ", sum(results["Q_cfd"][m][end] for m in agents[:Cons]))
 end
 
 ## 6. Postprocessing and save results 
 if sens_number >= 2
-save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,sensitivity_overview[sens_number-1,:remarks],market_design,scen_ts,years) 
-@save joinpath(home_dir,"Results", "$market_design" ,string("$scen_ts","_","$market_design","_",sensitivity_overview[sens_number-1,:remarks],market_design))
+save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,sensitivity_overview[sens_number-1,:remarks], market_design, years) 
+@save joinpath(home_dir,string("Results_", data["General"]["nReprDays"], "_repr_days"), "$market_design" ,string("$market_design","_",sensitivity_overview[sens_number-1,:remarks],".jld2")) results ADMM EOM agents data market_design
 else
-save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,"ref",market_design,scen_ts,years) # for csv files
-@save joinpath(home_dir,"Results","$market_design",string("$scen_ts","_","$market_design",".jld2")) results ADMM EOM agents data market_design
+save_results(mdict,EOM,ADMM,results,data,agents,scenario_overview_row,"ref",market_design, years) # for csv files
+@save joinpath(home_dir,string("Results_", data["General"]["nReprDays"], "_repr_days"),"$market_design",string("$market_design",".jld2")) results ADMM EOM agents data market_design
 end
 
-#if market_design == "cfd"
-#    cfd_results_processing()
-
+println(string("        "))
 println("Postprocessing & save results: done")
 println("   ")
 

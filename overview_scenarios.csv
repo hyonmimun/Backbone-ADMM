@@ -1,8 +1,8 @@
-scen_number;market_design;scen_ts;;Sens_analysis;remarks
-1;EOM;base;;NO;
-2;EOM;high;;NO;
-3;EOM;low;;NO;
-4;cfd;base;NO;NO;
-5;cfd;high;NO;NO;
-6;cfd;low;NO;NO;
+scen_number;market_design;Sens_analysis;remarks
+1;EOM;NO;
+2;EOM;YES; High gas prices
+3;cfd;NO;
+4;cfd;YES; High gas prices
+5;cfd;
+6;cfd;
 

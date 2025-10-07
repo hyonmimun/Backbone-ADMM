@@ -19,11 +19,5 @@ function define_generator_parameters!(mod::Model, data::Dict,ts::Dict, market_de
         mod.ext[:timeseries][:AF] = ones(nT,nR,nY)  # Full availability (100%)
         mod.ext[:timeseries][:AC] = data["C"]*ones(nT,nR,nY) # C in config.yaml (data) is the capacity of the generator
     end
-    
-    #cfd parameters
-    if market_design == "cfd"
-        mod.ext[:parameters][:λ_cfd] = data["lambda_cfd"] # 10^3 €/GWh (strike price)
-        #mod.ext[:parameters][:Q_cfd_gen_tot] = Q_cfd_gen_tot
-    end
     return mod
 end

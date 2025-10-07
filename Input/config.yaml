@@ -2,22 +2,21 @@ General:
   nTimesteps: 24 # number of timesteps per representative day
   nReprDays: 8 # days
   nDays: 365 # days
-  nYears: 3 # years
+  nYears: 9 # years
   totConsumers: 1000000 #  1 million consumers
-  beta: 0.5 # tail risk
-  gamma: 1 # weight of risk-aversion [0,1]
+  beta: 0.6 # fraction of tail risk (the 'unconfidence' level)
+  gamma: 1 # weight of risk-aversion [0 = very risk averse, 1 = risk neutral]
 
 ADMM:
- rho_EOM: 0.001 # rho ADMM penalty term, EOM (10^6 €/GWh) 1 €/MWh
- max_iter: 250 # maximum number of iterations
- epsilon: 0.000001 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals. #10^6 GWh?
+ rho_EOM: 0.01 # rho ADMM penalty term, EOM (10^6 €/GWh) 1 €/MWh
+ max_iter: 5 # maximum number of iterations
+ epsilon: 0.01 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals. # GWh
  CircularBufferSize: 4 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
 
 cfd: 
-  lambda_cfd: 0.001 # 10^6 €/GWh # 50 €/MWh
-  rho_cfd: 0.01 #rho penalty term, cfd (10^6 €/GWh) 10€/MWh
-  epsilon_cfd: 1 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
-  seed: 1
+  lambda_cfd: 0.05 # 10^6 €/GWh # 1000 €/MWh
+  rho_cfd: 0.1 #rho penalty term, cfd (10^6 €/GWh) 10€/MWh
+  epsilon_cfd: 0.01 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
 
 Consumers: # Set of representative consumers
   TypeA:
@@ -69,7 +68,7 @@ Generators:
     b: 0.01 # 10^6 €/GWh, 10 €/MWh
     C: 5 # GW (5000 MW)
 
-  MidMerit:
+  GasTurbine:
     a: 0.000000032 # 10^6 (€/GWh)^2 (0.032 €/MWh^2)
     b: 0.04 # 10^6 €/GWh (40 €/MWh)
     C: 10 # GW (5000 MW)

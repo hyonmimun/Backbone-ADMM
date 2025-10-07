@@ -71,9 +71,9 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
             α - consumer_profit[jy] <= u[jy] )
         end
 
-    elseif market_design == "cfd"
+    else market_design == "cfd"
         # cfd variables
-        Q_cfd_con = mod.ext[:variables][:Q_cfd_con]
+        Q_cfd = mod.ext[:variables][:Q_cfd]
 
         # cfd parameters
         λ_cfd = mod.ext[:parameters][:λ_cfd]  # 10^6 €/GWh (strike price)
@@ -84,24 +84,27 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
         Q_cfd_con_tot = mod.ext[:parameters][:Q_cfd_con_tot]
 
         # cfd expressions (per year)
-        #cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * (λ_EOM[jh,jd,jy] - λ_cfd) * Q_cfd_con[jy] for jh in JH, jd in JD))
-        
-        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod,[jy=JY], Q_cfd_con[jy] / (Q_cfd_con_tot[jy]+1e-3))
-        cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * share_cfd_con[jy] * (λ_EOM[jh,jd,jy] - λ_cfd) * g_cfd_total[jh,jd,jy] for jh in JH, jd in JD))
-        
-        #cfd_linear_con = mod.ext[:expressions][:cfd_linear_con] = @expression(mod, [jh=JH, jd=JD, jy=JY], g_cfd_total[jh,jd,jy] / (Q_cfd_con_tot[jy] + 1e-9))
-        #cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * (λ_EOM[jh,jd,jy] - λ_cfd) * cfd_linear_con[jh,jd,jy] * Q_cfd_con[jy] for jh in JH, jd in JD))
+        # Q_cfd is a scalar value: one decision made in the beginning for all scenarios
+        if Q_cfd_con_tot <= 1e-9
+        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, (0))
+        else
+        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, (Q_cfd/Q_cfd_con_tot))
+        end
 
-        cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, [jy=JY], ζ_cfd[jy] * Q_cfd_con[jy])
-        cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod,[jy=JY], ρ_cfd/2 * (Q_cfd_con[jy] - Q_cfd_bar[jy])^2)
-        cfd_consumer_profit = mod.ext[:expressions][:cfd_consumer_profit] = @expression(mod, [jy=JY], consumer_profit[jy] + cfd_payout[jy] - cfd_premium[jy])
+        cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * share_cfd_con * (λ_EOM[jh,jd,jy] - λ_cfd) * g_cfd_total[jh,jd,jy] for jh in JH, jd in JD))
+
+        cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * (-Q_cfd))
+
+        cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_cfd/2 * (Q_cfd - Q_cfd_bar)^2)
+
+        cfd_consumer_profit = mod.ext[:expressions][:cfd_consumer_profit] = @expression(mod, [jy=JY], consumer_profit[jy] + cfd_payout[jy])
 
         # Redefine objective for cfd scenario
         objective_consumer = mod.ext[:expressions][:objective_consumer] = @expression(mod,            
-            - γ * sum(P[jy]*cfd_consumer_profit[jy] for jy in JY)
+            - γ * (sum(P[jy] * cfd_consumer_profit[jy] for jy in JY) + cfd_premium)
             - (1 - γ) * CVAR
-            + sum(P[jy]*consumer_penalty[jy] for jy in JY)
-            + sum(P[jy]*cfd_penalty_con[jy] for jy in JY)
+            + sum(P[jy] * consumer_penalty[jy] for jy in JY)
+            + cfd_penalty_con
             )
 
         if γ < 1
@@ -123,6 +126,10 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
     mod.ext[:constraints][:energy_balance] = @constraint(mod, [jh in JH, jd in JD, jy in JY],
     g[jh,jd,jy] == - D_fixed[jh,jd,jy] - D_ELA[jh,jd,jy] + PV[jh,jd,jy] - (charge[jh,jd,jy]) + (discharge[jh,jd,jy])
     )
+    #println("Debug Consumer Agent:")
+    #println("λ_cfd values: ", λ_cfd)
+    #println("Q_cfd_bar values: ", Q_cfd_bar)
+    #println("ρ_cfd value: ", ρ_cfd)
 
    optimize!(mod)
 
@@ -130,11 +137,13 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
     #println("Consumer Primal status:      ", MOI.get(mod, MOI.PrimalStatus()))
     #println("Consumer Dual status:        ", MOI.get(mod, MOI.DualStatus()))
     
-    #@show value.(mod.ext[:variables][:Q_cfd_con])
+    #@show value.(mod.ext[:variables][:Q_cfd])
     #@show value.(mod.ext[:parameters][:Q_cfd_con_tot])
-    #@show mod.ext[:parameters][:g_cfd_total]
-    #@show mod.ext[:parameters][:Q_cfd_bar]
+    #@show value.(mod.ext[:parameters][:g_cfd_total])
+    #@show value.(mod.ext[:parameters][:Q_cfd_bar])
     #@show value.(mod.ext[:expressions][:share_cfd_con])
+    #@show value.(mod.ext[:expressions][:cfd_premium])
+    #@show value.(mod.ext[:expressions][:cfd_penalty_con])
 
 
     #@show haskey(mod.ext[:constraints], :energy_balance)
