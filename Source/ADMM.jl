@@ -7,20 +7,20 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
     nR = data["General"]["nReprDays"]
     nT = data["General"]["nTimesteps"]
 
+    # paths for logging
     results_dir = joinpath(home_dir,string("Results_", data["General"]["nReprDays"], "_repr_days"))
     out_dir = joinpath(results_dir, String(market_design))
     logpath = joinpath(out_dir, string(market_design, "_ADMM_residuals_all.csv"))
     isfile(logpath) && rm(logpath)
 
     if market_design == "cfd"
+        # logging of Q_cfd values
         q_cfd_paths = joinpath(out_dir,"cfd_totals", "cfd_Q_cfd.csv")
-    # Vaste volgorde van agentnamen voor kolommen
-    agent_order = [String(m) for m in vcat(agents[:Cons], agents[:Gen])]
-        if isfile(q_cfd_paths)
-            rm(q_cfd_paths; force=true)
-        end
-
-    #= Headers schrijven als de CSV's nog niet bestaan
+        agent_order = [String(m) for m in agents[:all]]
+            if isfile(q_cfd_paths)
+                rm(q_cfd_paths; force=true)
+            end
+    # Headers schrijven als de CSV's nog niet bestaan
         if !isfile(q_cfd_paths)
             df0 = DataFrame()
             df0[!, :iteration] = Int[]
@@ -28,7 +28,7 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
                 df0[!, Symbol(name)] = Float64[]
             end
             CSV.write(q_cfd_paths, df0)
-        end =#
+        end
     end 
     
     for iter in iterations
@@ -65,6 +65,7 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
             println("Agent $m:")
             println("  Q_cfd value: ", value(mdict[m].ext[:variables][:Q_cfd]))
             println("  ζ_cfd value: ", mdict[m].ext[:parameters][:ζ_cfd])
+            
             println("  ρ_cfd value: ", ADMM["ρ"]["cfd"][end])
             println("  Q_cfd_bar value: ", mdict[m].ext[:parameters][:Q_cfd_bar])
             =#
@@ -127,16 +128,16 @@ function ADMM!(results::Dict,ADMM::Dict,EOM::Dict,mdict::Dict,agents::Dict,scena
                     # Add after imbalance calculations
                     #println("CfD Imbalance: ", ADMM["Imbalances"]["cfd"][end])
                     #println("Gen positions: ", sum(results["Q_cfd"][m][end] for m in agents[:Gen]))
-                   # println("Con positions: ", sum(results["Q_cfd"][m][end] for m in agents[:Cons]))
-                  #  println("Price update: ", ADMM["ρ"]["cfd"][end]*ADMM["Imbalances"]["cfd"][end])
+                    #println("Con positions: ", sum(results["Q_cfd"][m][end] for m in agents[:Cons]))
                 end
             end
             
             # Add debug prints for initialization
-            println("Initializing CfD variables:")
-            for m in vcat(agents[:Gen], agents[:Cons])
-                println("Agent $m initial Q_cfd: ", value(mdict[m].ext[:variables][:Q_cfd]))
-                println("Agent $m initial ζ_cfd: ", mdict[m].ext[:parameters][:ζ_cfd])
+            #println(" CfD variables:")
+            for m in agents[:all]
+                println("Agent $m Q_cfd: ", value(mdict[m].ext[:variables][:Q_cfd]))
+                println("Agent $m ζ_cfd: ", mdict[m].ext[:parameters][:ζ_cfd])
+                println("Agent $m Q_cfd_bar: ", mdict[m].ext[:parameters][:Q_cfd_bar])
             end
             
             # Primal residuals

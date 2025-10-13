@@ -81,7 +81,8 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
 
         # cfd objective (over all years)
         objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
-        - γ * (sum(P[jy] * cfd_generator_profit[jy] for jy in JY) - cfd_premium_gen)#premium is revenue for the generator
+        - γ * (sum(P[jy] * cfd_generator_profit[jy] for jy in JY))
+        - γ * cfd_premium_gen # premium is revenue for the generator, so negative on cost minimization
         - (1 - γ) * CVAR
         + sum(P[jy] * generator_penalty[jy] for jy in JY)
         + cfd_penalty_gen
@@ -90,7 +91,7 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
         # cfd related constraints
         mod.ext[:constraints][:cfd_installed_cap] = @constraint(mod, [jy=JY], Q_cfd <= C) # cfd contracted capacity cannot exceed installed capacity #GW
         
-        mod.ext[:constraints][:g_cfd] = @constraint(mod, [jh=JH, jd=JD, jy=JY], g_cfd[jh,jd,jy] <= AF[jh,jd,jy] * Q_cfd[jy]) # GWh they can curtail
+        mod.ext[:constraints][:g_cfd] = @constraint(mod, [jh=JH, jd=JD, jy=JY], g_cfd[jh,jd,jy] <= AF[jh,jd,jy] * Q_cfd) # GWh they can curtail
         
         mod.ext[:constraints][:cap_limit] = @constraint(mod, [jh=JH, jd=JD, jy=JY],
         g[jh,jd,jy] + g_cfd[jh,jd,jy] <=  AC[jh,jd,jy] # GWh

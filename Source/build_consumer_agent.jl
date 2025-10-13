@@ -88,7 +88,7 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
         
         cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * share_cfd_con * (λ_EOM[jh,jd,jy] - λ_cfd) * g_cfd_total[jh,jd,jy] for jh in JH, jd in JD)) # 10^6€/year
         
-        cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * (-Q_cfd)) #10^6€
+        cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * Q_cfd) #10^6€
 
         cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_cfd/2 * (Q_cfd - Q_cfd_bar)^2) # GW
 
@@ -97,7 +97,8 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
 
         # Redefine objective for cfd scenario
         objective_consumer = mod.ext[:expressions][:objective_consumer] = @expression(mod,            
-            - γ * (sum(P[jy] * cfd_consumer_profit[jy] for jy in JY) + cfd_premium)
+            - γ * (sum(P[jy] * cfd_consumer_profit[jy] for jy in JY)) 
+            - γ * cfd_premium # since Q_cfd is negative for consumers, premium is a cost and is added with a minus sign to the objective
             - (1 - γ) * CVAR
             + sum(P[jy] * consumer_penalty[jy] for jy in JY)
             + cfd_penalty_con

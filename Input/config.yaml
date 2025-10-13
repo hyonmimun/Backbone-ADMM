@@ -8,13 +8,13 @@ General:
   gamma: 1 # weight of risk-aversion [0 = very risk averse, 1 = risk neutral]
 
 ADMM:
- rho_EOM: 0.01 # rho ADMM penalty term, EOM (10^6 €/GWh) 1 €/MWh
- max_iter: 5 # maximum number of iterations
+ rho_EOM: 0.1 # rho ADMM penalty term, EOM (10^6 €/GWh) 1 €/MWh
+ max_iter: 150 # maximum number of iterations
  epsilon: 0.01 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals. # GWh
  CircularBufferSize: 4 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
 
-cfd: 
-  lambda_cfd: 0.05 # 10^6 €/GWh # 1000 €/MWh
+cfd:
+  lambda_cfd: 0.01 # 10^6 €/GWh # 50 €/MWh
   rho_cfd: 0.1 #rho penalty term, cfd (10^6 €/GWh) 10€/MWh
   epsilon_cfd: 0.01 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
 

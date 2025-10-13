@@ -132,9 +132,9 @@ if isdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_r
 end
 
 # Create folder for results
-if isdir(joinpath(home_dir,string("Results"))) != 1
-    mkdir(joinpath(home_dir,string("Results")))
-end
+#if isdir(joinpath(home_dir,string("Results"))) != 1
+#    mkdir(joinpath(home_dir,string("Results")))
+#end
 
 # Create file with results 
 # add column for sensitivity analysis

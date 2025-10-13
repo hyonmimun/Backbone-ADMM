@@ -11,9 +11,14 @@ function ADMM_subroutine!(m::String,results::Dict,ADMM::Dict,EOM::Dict,mod::Mode
         mod.ext[:parameters][:ζ_cfd] = results["ζ"]["cfd"][end]
         mod.ext[:parameters][:ρ_cfd] = ADMM["ρ"]["cfd"][end]
         mod.ext[:parameters][:Q_cfd_bar] = results["Q_cfd"][m][end] - 1/(EOM["nAgents"]+1)*ADMM["Imbalances"]["cfd"][end]
-
-        @show mod.ext[:parameters][:Q_cfd_bar]
-        @show mod.ext[:parameters][:ζ_cfd]
+            #=if m in agents[:Gen]
+                mod.ext[:parameters][:Q_cfd_bar] = results["Q_cfd"][m][end] - 1/(EOM["nAgents"]+1)*ADMM["Imbalances"]["cfd"][end]
+            elseif m in agents[:Cons]
+                # Note the + sign here since consumers have negative Q_cfd
+                mod.ext[:parameters][:Q_cfd_bar] = results["Q_cfd"][m][end] + 1/(EOM["nAgents"]+1)*ADMM["Imbalances"]["cfd"][end]
+            end =#
+        #@show mod.ext[:parameters][:Q_cfd_bar]
+        #@show mod.ext[:parameters][:ζ_cfd]
         end
 
     # Solve agents decision problems:

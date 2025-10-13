@@ -85,7 +85,8 @@ function solve_generator_agent!(mod::Model, market_design::AbstractString, m::St
 
         # cfd objective (over all years)
         objective_generator = mod.ext[:expressions][:objective_generator] = @expression(mod,
-        - γ * (sum(P[jy] * cfd_generator_profit[jy] for jy in JY) - cfd_premium_gen)
+        - γ * sum(P[jy] * cfd_generator_profit[jy] for jy in JY)
+        - γ * cfd_premium_gen
         - (1 - γ) * CVAR
         + sum(P[jy] * generator_penalty[jy] for jy in JY)
         + cfd_penalty_gen
