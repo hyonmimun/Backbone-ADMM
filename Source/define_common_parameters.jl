@@ -11,17 +11,21 @@ function define_common_parameters!(m::String,mod::Model, data::Dict, ts::Dict, a
     mod.ext[:sets][:JY] = 1:data["General"]["nYears"]
     mod.ext[:sets][:JD] = 1:data["General"]["nReprDays"]
     mod.ext[:sets][:JH] = 1:data["General"]["nTimesteps"]
+    #mod.ext[:sets][:JG] = 1:data["General"]["nGasPrice"]
 
     nT = data["General"]["nTimesteps"]
     nR = data["General"]["nReprDays"]
     nY = data["General"]["nYears"]
+    #nG = data["General"]["nGasPrice"]
+
     idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # get absolute timestep in repr days in year
 
     # Parameters
     mod.ext[:parameters][:W] = [repr_days[jy][!, :weights][jd] for jd in mod.ext[:sets][:JD], jy in mod.ext[:sets][:JY]] # weights of each representative day
     mod.ext[:parameters][:P] = ones(data["General"]["nYears"]) / data["General"]["nYears"] # probability of each scenario - uniform distribution
+    #mod.ext[:parameters][:P_g] = ones(data["General"]["nGasPrice"]) / data["General"]["nGasPrice"] # uniform probability distribution for gas price scenarios
     mod.ext[:parameters][:β] = data["General"]["beta"] # risk aversion parameter - represents the cumulative probability of worst-case scenarios
-    mod.ext[:parameters][:γ] = data["General"]["gamma"]     # weight of expected revenues and CVAR
+    mod.ext[:parameters][:γ] = data["General"]["gamma"] # weight between expected profit and risk mitigation
     
     # Parameters related to the EOM
     mod.ext[:parameters][:λ_EOM] = zeros(nT,nR,nY)   # Price structure

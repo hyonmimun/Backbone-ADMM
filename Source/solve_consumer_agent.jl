@@ -4,15 +4,13 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
     JD = mod.ext[:sets][:JD]
     JH = mod.ext[:sets][:JH]
 
-    nY = data["General"]["nYears"]
-    nR = data["General"]["nReprDays"]
-    nT = data["General"]["nTimesteps"]
-
-    idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # get absolute timestep in repr days in year
+    nT = length(JH)
+    nR = length(JD)
+    nY = length(JY)
 
     # Extract time series data
     D = mod.ext[:timeseries][:D]
-    PV = mod.ext[:timeseries][:PV]
+    PV = haskey(mod.ext[:timeseries], :PV) ? mod.ext[:timeseries][:PV] : zeros(nT, nR, nY)
 
     # Extract parameters
     λ_EOM = mod.ext[:parameters][:λ_EOM]
@@ -27,12 +25,15 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
     γ = mod.ext[:parameters][:γ] # weight between profit and risk-aversion
 
     # Battery parameters
-    cap_smax = mod.ext[:parameters][:cap_smax] # Battery capacity in GWh (kWh)
-    EC = mod.ext[:parameters][:EC] # Charging efficiency
-    ED = mod.ext[:parameters][:ED] # Discharging efficiency
-    Decay = mod.ext[:parameters][:Decay] # Hourly decay rate
-    winj = mod.ext[:parameters][:winj] # Max charging power (GWh)
-    wwith = mod.ext[:parameters][:wwith] # Max discharging power (GWh)
+    has_battery = mod.ext[:parameters][:has_battery]
+    if has_battery
+        cap_smax = mod.ext[:parameters][:cap_smax] # Battery capacity in GWh (kWh)
+        EC = mod.ext[:parameters][:EC] # Charging efficiency
+        ED = mod.ext[:parameters][:ED] # Discharging efficiency
+        Decay = mod.ext[:parameters][:Decay] # Hourly decay rate
+        winj = mod.ext[:parameters][:winj] # Max charging power (GWh)
+        wwith = mod.ext[:parameters][:wwith] # Max discharging power (GWh)
+    end
 
     # Create variables
     g = mod.ext[:variables][:g]
@@ -48,7 +49,6 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
     # Create affine expressions (per year)
     utility_term = mod.ext[:expressions][:utility_term] = @expression(mod, [jh=JH, jd=JD, jy=JY], WTP * D_ELA[jh,jd,jy] - (WTP / (2 * D_ELA_max[jh,jd,jy])) * D_ELA[jh,jd,jy]^2)
     consumer_settlement = mod.ext[:expressions][:consumer_settlement] = @expression(mod,[jh=JH, jd=JD, jy=JY], λ_EOM[jh, jd, jy] * g[jh, jd, jy]) # or profit when g is positive
-    
     consumer_profit = mod.ext[:expressions][:consumer_profit] = @expression(mod, [jy = JY], sum( W[jd, jy] * (utility_term[jh, jd, jy] + consumer_settlement[jh,jd,jy]) for jh in JH, jd in JD)) # at consumption g < 0 = already negative = costs, otherwise added to profit
     consumer_penalty = mod.ext[:expressions][:consumer_penalty] = @expression(mod,[jy=JY], sum(ρ_EOM/2 * W[jd,jy]*(g[jh,jd,jy] - g_bar[jh,jd,jy])^2 for jh in JH, jd in JD))
     
@@ -85,18 +85,15 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
 
         # cfd expressions (per year)
         # Q_cfd is a scalar value: one decision made in the beginning for all scenarios
-        if Q_cfd_con_tot <= 1e-9
+        if Q_cfd_con_tot == 0
         share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, (0))
         else
-        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, (Q_cfd/Q_cfd_con_tot))
+        share_cfd_con =  mod.ext[:expressions][:share_cfd_con] = @expression(mod, (-Q_cfd/Q_cfd_con_tot))
         end
 
         cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * share_cfd_con * (λ_EOM[jh,jd,jy] - λ_cfd) * g_cfd_total[jh,jd,jy] for jh in JH, jd in JD))
-        # if consumers consume more, then they have to pay a higher premium. 
-        cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * Q_cfd)
-
+        cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * Q_cfd) # if consumers consume more, then they have to pay a higher premium. 
         cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_cfd/2 * (Q_cfd - Q_cfd_bar)^2)
-
         cfd_consumer_profit = mod.ext[:expressions][:cfd_consumer_profit] = @expression(mod, [jy=JY], consumer_profit[jy] + cfd_payout[jy])
 
         # Redefine objective for cfd scenario
@@ -120,7 +117,7 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
     mod.ext[:objective] = @objective(mod, Min, objective_consumer)
 
     if haskey(mod.ext[:constraints], :energy_balance) # Check whether constraint :energybalance exists in the model
-        delete.(Ref(mod), collect(mod.ext[:constraints][:energy_balance])) # Makes DenseAxisArray into vector, deletes the existing energy balance constraint if it exists
+        delete.(Ref(mod), collect(mod.ext[:constraints][:energy_balance])) # deletes the existing energy balance constraint
         delete!(mod.ext[:constraints], :energy_balance)  # Remove the reference/key :energy_balance from the constraints dictionary
     end
     # Redefine energy balance
@@ -137,6 +134,8 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
     #println("Consumer Termination status: ", MOI.get(mod, MOI.TerminationStatus()))
     #println("Consumer Primal status:      ", MOI.get(mod, MOI.PrimalStatus()))
     #println("Consumer Dual status:        ", MOI.get(mod, MOI.DualStatus()))
+    
+    #println("CfD payout for $m:", value.(cfd_payout))
     
     #@show value.(mod.ext[:variables][:Q_cfd])
     #@show value.(mod.ext[:parameters][:Q_cfd_con_tot])

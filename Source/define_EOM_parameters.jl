@@ -2,6 +2,7 @@ function define_EOM_parameters!(EOM::Dict,data::Dict,ts::Dict,scenario_overview_
     nT = data["General"]["nTimesteps"]
     nR = data["General"]["nReprDays"]
     nY = data["General"]["nYears"]
+    
     idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # function to get the absolute timestep in the full timeseries given year, repr day and hour in repr day
     
     EOM["D"] = Array{Float64,3}(undef, nT, nR, nY)

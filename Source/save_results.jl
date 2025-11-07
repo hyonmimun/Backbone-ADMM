@@ -125,11 +125,11 @@ for (y, ylab) in enumerate(year_labels)
     df_gen_penalty[i,Symbol(ylab)] = generator_penalty[y]
 end
 
-CSV.write(joinpath(out_dir, "expressions","Gen", string(market_design, "_generator_profit.csv")),df_genprofit; delim=";")
-CSV.write(joinpath(out_dir, "expressions","Gen", string(market_design, "_generator_revenue.csv")),df_genrev; delim=";")
-CSV.write(joinpath(out_dir, "expressions","Gen", string(market_design, "_generator_costs.csv")),df_gencosts; delim=";")
-CSV.write(joinpath(out_dir, "expressions","Gen",string(market_design, "_generator_tail_diff.csv")),df_gen_tail_diff; delim=";")
-CSV.write(joinpath(out_dir, "expressions","Gen",string(market_design, "_generator_penalty.csv")),df_gen_penalty; delim=";")
+CSV.write(joinpath(out_dir, "expressions","Gen", string(market_design, "_eom_generator_profit.csv")),df_genprofit; delim=";")
+CSV.write(joinpath(out_dir, "expressions","Gen", string(market_design, "_eom_generator_revenue.csv")),df_genrev; delim=";")
+CSV.write(joinpath(out_dir, "expressions","Gen", string(market_design, "_eom_generator_costs.csv")),df_gencosts; delim=";")
+CSV.write(joinpath(out_dir, "expressions","Gen",string(market_design, "_eom_generator_tail_diff.csv")),df_gen_tail_diff; delim=";")
+CSV.write(joinpath(out_dir, "expressions","Gen",string(market_design, "_eom_generator_penalty.csv")),df_gen_penalty; delim=";")
 
 if market_design == "cfd"
 
@@ -146,21 +146,18 @@ end
 
 for (i,m) in enumerate(agents[:Gen])
 cfd_payout_gen = collect(value.(mdict[m].ext[:expressions][:cfd_payout_gen]))
-gen_cfd_costs = collect(value.(mdict[m].ext[:expressions][:gen_cfd_costs]))
+#gen_cfd_costs = collect(value.(mdict[m].ext[:expressions][:gen_cfd_costs]))
 cfd_generator_profit = collect(value.(mdict[m].ext[:expressions][:cfd_generator_profit]))
 
 for (y, ylab) in enumerate(year_labels)
     df_gen_cfd_payout[i, Symbol(ylab)] = cfd_payout_gen[y]
-    df_gen_cfd_costs[i, Symbol(ylab)] = gen_cfd_costs[y]
+    #df_gen_cfd_costs[i, Symbol(ylab)] = gen_cfd_costs[y]
     df_gen_cfd_profit[i, Symbol(ylab)] = cfd_generator_profit[y]
 end
 
-CSV.write(joinpath(out_dir, "expressions","Gen", "TOTAL_cfd_gen_payout.csv"),
-df_gen_cfd_payout; delim=";")
-CSV.write(joinpath(out_dir, "expressions","Gen", "cfd_gen_costs.csv"),
-df_gen_cfd_costs; delim=";")
-CSV.write(joinpath(out_dir, "expressions","Gen", "cfd_gen_profit.csv"),
-df_gen_cfd_profit; delim=";")
+CSV.write(joinpath(out_dir, "expressions","Gen", "cfd_gen_payout.csv"),df_gen_cfd_payout; delim=";")
+#CSV.write(joinpath(out_dir, "expressions","Gen", "cfd_generation_costs.csv"), df_gen_cfd_costs; delim=";")
+CSV.write(joinpath(out_dir, "expressions","Gen", "cfd_gen_TOTAL_profit.csv"), df_gen_cfd_profit; delim=";")
 end
 end
 end
@@ -191,7 +188,7 @@ CSV.write(joinpath(out_dir,"expressions","Gen","$(market_design)_CVAR_gen.csv"),
 CSV.write(joinpath(out_dir,"expressions","Gen","$(market_design)_VAR_gen.csv"),
 DataFrame(permutedims(gen_VAR), string.("VAR_", agents[:Gen])))
 
-##### Variables for all scenarios #####   
+###################### Variables for all scenarios ##########################
 for jy in 1:nY
         #CSV.write(joinpath(home_dir,string("Results_",data["General"]["nReprDays"],"_repr_days"),string(market_design,"_demand_",jy,".csv")), DataFrame(EOM["D"][:,:,jy],:auto), delim=";");
         CSV.write(joinpath(out_dir,"electricity_price",string(market_design,"_electricity_price_year_",jy,".csv")), 
@@ -204,10 +201,11 @@ for jy in 1:nY
         for m in agents[:Cons]
             CSV.write(joinpath(out_dir,"generation","Cons",string(m), string(market_design,"_generation_",m,"_year",jy,".csv")), DataFrame(results["g"][m][end][:,:,jy], :auto); delim=";")
             CSV.write(joinpath(out_dir,"D_ELA",string(m),string(market_design,"_elastic_demand_",m,"_year",jy,".csv")), DataFrame(results["D_ELA"][m][end][:,:,jy],:auto), delim=";")
+            if haskey(results["SOC"], m)
             CSV.write(joinpath(out_dir,"SOC",string(m),string(market_design,"_SOC_",m,"_year",jy,".csv")), DataFrame(results["SOC"][m][end][:,:,jy],:auto), delim=";")
             CSV.write(joinpath(out_dir,"charge",string(m),string(market_design,"_charge_",m,"_year",jy,".csv")), DataFrame(results["charge"][m][end][:,:,jy],:auto), delim=";")
             CSV.write(joinpath(out_dir,"discharge",string(m),string(market_design,"_discharge_",m,"_year",jy,".csv")), DataFrame(results["discharge"][m][end][:,:,jy],:auto), delim=";")
-            #CSV.write(joinpath(out_dir,"PV",string(m),string(market_design,"_PV_",m,"_year",jy,".csv")), DataFrame(results["PV"][m][end], :auto); delim=';')
+            end
         end
 
         #CSV.write(joinpath(out_dir, "generation", "total_demand",string(market_design, "_total_demand_year", jy, ".csv")),DataFrame(total_demand, :auto); delim=';')
@@ -227,13 +225,20 @@ for jy in 1:nY
 
         for m in agents[:Cons]
             total_cons .+= results["g"][m][end][:,:,jy]
-            PV_total .+= mdict[m].ext[:timeseries][:PV][:,:,jy]
+            if haskey(mdict[m].ext[:timeseries], :PV)
+                PV_total .+= mdict[m].ext[:timeseries][:PV][:,:,jy]
+            else
+                PV_total .+= zeros(nT, nR)
+            end
             D_fixed .+= mdict[m].ext[:parameters][:D_fixed][:,:,jy]
             D_ela .+= results["D_ELA"][m][end][:,:,jy]
             D_fix_ela .+= D_fixed .+ D_ela
-            tot_charge .+= results["charge"][m][end][:,:,jy]
-            tot_discharge .+= results["discharge"][m][end][:,:,jy]
-            tot_SOC .+= results["SOC"][m][end][:,:,jy]
+            # Battery aggregation: only add if this consumer has battery
+            if haskey(results["SOC"], m)
+                tot_charge .+= results["charge"][m][end][:,:,jy]
+                tot_discharge .+= results["discharge"][m][end][:,:,jy]
+                tot_SOC .+= results["SOC"][m][end][:,:,jy]
+            end
         end
 
         gen_total = zeros(nT,nR)
@@ -263,35 +268,84 @@ for jy in 1:nY
         DataFrame(mat_output,:auto), delim=";",header=["Timestep";"Price";header_g;"Demand";"Total_PV"]);
     end
 
-        ################ Plot ADMM residuals for all iterations ################
-        df = CSV.read(joinpath(out_dir, string(market_design,"_ADMM_residuals_all.csv")), DataFrame,delim=";")
+    ############################## Save ADMM history for analysis ###################################
+    # Create history DataFrame
+    n_iter = ADMM["n_iter"]
+    history_df = DataFrame(
+        iteration = 1:n_iter,
+        primal_EOM = ADMM["History"]["Primal_EOM"],
+        dual_EOM = vcat([0.0],ADMM["History"]["Dual_EOM"]),
+        rho_EOM = ADMM["History"]["rho_EOM"]
+    )
 
-        plot(df.iteration, df.primal_residual,
-            label = "Primal residual",
+    if market_design == "cfd"
+        history_df.primal_cfd = ADMM["History"]["Primal_cfd"]
+        history_df.dual_cfd = vcat([0.0],ADMM["History"]["Dual_cfd"])
+        history_df.rho_cfd = ADMM["History"]["rho_cfd"]
+        history_df.zeta_cfd = ADMM["History"]["zeta_cfd"]
+        history_df.imbalance_cfd = ADMM["History"]["imbalance_cfd"]
+    end
+
+    # Save to CSV
+    CSV.write(joinpath(out_dir, "ADMM_iteration_history.csv"), history_df; delim=";")
+    #CSV.read(joinpath(out_dir, "ADMM_iteration_history.csv"), DataFrame ,delim=";")
+
+    plot(history_df.iteration, history_df.primal_EOM, 
+            title= "EOM ADMM residuals",
+            label = "EOM Primal Residual",
             xlabel = "Iteration",
-            ylabel = "Residuals $(market_design)",
+            ylabel = "EOM Residuals for $(market_design)",
             lw = 2)
 
-        plot!(df.iteration, df.dual_residual,
-            label = "Dual residual",
-            lw = 2)
+    plot!(history_df.iteration, history_df.dual_EOM, 
+    label = "EOM Dual Residual", lw=2)
 
-        if market_design == "cfd"
-            plot!(df.iteration, df.cfd_primal,
-            label = "CfD primal residual",
-            lw = 2,
-            linestyle = :dash)
+    savefig(savefig(joinpath(out_dir, "EOM_ADMM_residuals_plot.png")))
+    
+    plot(history_df.iteration, history_df.rho_EOM, 
+                label = "ρ_EOM",
+                xlabel = "Iteration",
+                ylabel = "ρ $(market_design)",
+                lw = 2)
 
-            plot!(df.iteration, df.cfd_dual,
-            label = "CfD dual residual",
-            lw = 2,
-            linestyle = :dash)
-        end
-        savefig(joinpath(out_dir, string(market_design,"_ADMM_residuals_plot.png")))
+    savefig(savefig(joinpath(out_dir, "rho_EOM_plot.png")))
+    
+    if market_design == "cfd"
+        # CfD residuals plot
+        p2 = plot(history_df.iteration, history_df.primal_cfd,
+            label="CfD Primal Residual",
+            xlabel="Iteration",
+            ylabel="CfD Residuals",
+            title="CfD Residuals",
+            lw=2)
+        plot!(p2, history_df.iteration, history_df.dual_cfd,
+            label="CfD Dual Residual", lw=2)
+        savefig(p2, joinpath(out_dir, "CfD_ADMM_residuals.png"))
+
+        # Rho evolution plot
+        p3 = plot(history_df.iteration, history_df.rho_cfd,
+            label="ρ_cfd",
+            xlabel="Iteration",
+            ylabel="Penalty Parameter",
+            title="CfD Penalty Evolution",
+            lw=2)
+        savefig(p3, joinpath(out_dir, "rho_cfd_evolution.png"))
+        
+        # Zeta evolution plot
+        p4 = plot(history_df.iteration, history_df.zeta_cfd,
+            label="ζ_cfd",
+            xlabel="Iteration",
+            ylabel="Premium (€/MWh)",
+            title="CfD Premium Evolution",
+            lw=2)
+        hline!(p4, [0], color=:black, linestyle=:dash, label=false)
+        savefig(p4, joinpath(out_dir, "cfd_totals", "zeta_cfd_evolution.png"))
+    end
 
     ##################################### CfD results ########################################
 
         if market_design == "cfd"
+
         cfd_agents = DataFrame(agent_type=String[], agent=String[], Q_cfd=Float64[], Q_cfd_total=Float64[], share_cfd=Float64[], Q_cfd_bar=Float64[],cfd_penalty=Float64[], ζ_cfd=Float64[],cfd_premium=Float64[])
 
         for m in agents[:Gen]
@@ -353,5 +407,51 @@ for jy in 1:nY
             end
             CSV.write(joinpath(out_dir,"cfd_totals",string( "g_cfd_tot_yearly.csv")), df_g_cfd_tot_gen; delim=";")
         end
+
+  ############################ Q_cfd results #####################################
+    q_cfd_df = DataFrame(iteration = 1:n_iter)
+            for m in agents[:all]
+                q_cfd_df[!,m] = results["History"]["Q_cfd"][m][1:n_iter]
+            end
+            CSV.write(joinpath(out_dir, "cfd_totals", "Q_cfd_evolution.csv"), q_cfd_df)
+
+        plot_q_cfd = plot(title="Generator Q_cfd", 
+                            xlabel="Iteration",
+                            ylabel="Q_cfd (GW)", 
+                            lw=2, legend=:best)
+
+        for m in agents[:Gen]
+            plot!(plot_q_cfd, q_cfd_df.iteration, q_cfd_df[!,m], label=m) 
+        end
+        savefig(plot_q_cfd, joinpath(out_dir, "cfd_totals", "Q_cfd_gen.png"))
+
+        plot_cons = plot(title="Consumer Q_cfd", xlabel="Iteration", ylabel="Q_cfd (GW)", lw=2, legend=:best)
+
+        for m in agents[:Cons]
+            plot!(plot_cons, q_cfd_df.iteration, q_cfd_df[!,m], label=m)
+        end
+        savefig(plot_cons, joinpath(out_dir, "cfd_totals", "Q_cfd_con.png"))
+
+         # Plot all agents combined
+    p_all = plot(title="All Agents Q_cfd Evolution",
+                 xlabel="Iteration",
+                 ylabel="Q_cfd (GW)",
+                 lw=2,
+                 legend=:outerright)
+    
+    for m in agents[:Gen]
+        plot!(p_all, q_cfd_df.iteration, q_cfd_df[!, m], 
+              label=m, linestyle=:solid)
     end
+    
+    for m in agents[:Cons]
+        plot!(p_all, q_cfd_df.iteration, q_cfd_df[!, m], 
+              label=m, linestyle=:dash)
+    end
+    
+    # Add zero reference line
+    hline!(p_all, [0], color=:black, linestyle=:dot, label="Zero", lw=1)
+    
+    savefig(p_all, joinpath(out_dir, "cfd_totals", "Q_cfd_all_agents.png"))
 end
+end 

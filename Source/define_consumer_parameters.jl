@@ -7,36 +7,42 @@ function define_consumer_parameters!(mod::Model, data::Dict, ts::Dict, market_de
     nT = data["nTimesteps"]
     nR = data["nReprDays"]
     nY = data["nYears"]
+    
     idx(jy, jd, jh) = nT * (repr_days[jy][!,:periods][jd] - 1) + jh # get absolute timestep in repr days in year
 
     # Parameters - note consumers are rescaled (total number of consumers x share of this type of consumer)
     D_consumers = data["totConsumers"]*data["Share"].*
     [ts[jy][!,Symbol(data["D"])][idx(jy,jd,jh)] for jh=1:nT, jd=1:nR, jy=1:nY]/10^3 # GWh demand profile for segment
-
-    D_PV = data["totConsumers"]*data["Share"]*data["PV_cap"].*
-    [ts[jy][!,Symbol(data["PV_AF"])][idx(jy,jd,jh)]/10^3 for jh=1:nT, jd=1:nR, jy=1:nY] # GWp
-
-    mod.ext[:timeseries][:PV] = D_PV
-
     mod.ext[:timeseries][:D] = D_consumers # Store the total demand profile of segment
-
     mod.ext[:parameters][:D_fixed] = 0.8 .* D_consumers # Fixed demand (80%)
     mod.ext[:parameters][:D_ELA_max] = 0.2 .* D_consumers # Max elastic demand (20%)
     mod.ext[:parameters][:WTP] = data["WTP"]
 
+
+    if haskey(data, "PV_cap")
+        D_PV = data["totConsumers"]*data["Share"]*data["PV_cap"].*
+        [ts[jy][!,Symbol(data["PV_AF"])][idx(jy,jd,jh)]/10^3 for jh=1:nT, jd=1:nR, jy=1:nY] # GWp
+        mod.ext[:timeseries][:PV] = D_PV
+    end
+
     # Battery parameters
-    mod.ext[:parameters][:cap_smax] = data["Battery"]["cap_smax"]  # Max battery capacity
-    mod.ext[:parameters][:EC] = data["Battery"]["EC"]  # Charging efficiency
-    mod.ext[:parameters][:ED] = data["Battery"]["ED"]  # Discharging efficiency
-    mod.ext[:parameters][:Decay] = data["Battery"]["Decay"]  # Hourly decay
-    mod.ext[:parameters][:winj] = data["Battery"]["winj"]  # Max charging power
-    mod.ext[:parameters][:wwith] = data["Battery"]["wwith"]  # Max discharging power
+    if haskey(data, "Battery")
+        mod.ext[:parameters][:has_battery] = true
+        mod.ext[:parameters][:cap_smax] = data["Battery"]["cap_smax"] # Max battery capacity
+        mod.ext[:parameters][:EC] = data["Battery"]["EC"] # Charging efficiency
+        mod.ext[:parameters][:ED] = data["Battery"]["ED"] # Discharging efficiency
+        mod.ext[:parameters][:Decay] = data["Battery"]["Decay"] # Hourly decay
+        mod.ext[:parameters][:winj] = data["Battery"]["winj"] # Max charging power
+        mod.ext[:parameters][:wwith] = data["Battery"]["wwith"] # Max discharging power
+    else
+        mod.ext[:parameters][:has_battery] = false
+    end 
 
     if market_design == "cfd"
         # cfd parameters
         mod.ext[:parameters][:g_cfd_total] = zeros(nT,nR,nY) # 10^6 €/GWh total generation under cfd
-        mod.ext[:parameters][:Q_cfd_con_tot] = 0
+        mod.ext[:parameters][:Q_cfd_con_tot] = 0.0
+        #mod.ext[:parameters][:share_cfd_con] = 1.0 / length(agents[:Cons])
     end
-
     return mod
 end

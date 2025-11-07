@@ -51,6 +51,16 @@ const GUROBI_ENV = Gurobi.Env()
 # set parameters:
 GRBsetparam(GUROBI_ENV, "OutputFlag", "0")   
 GRBsetparam(GUROBI_ENV, "Threads", "4")
+GRBsetparam(GUROBI_ENV, "Crossover", "0")          # Skip crossover - big speedup
+GRBsetparam(GUROBI_ENV, "BarHomogeneous", "1")     # Better for CVAR ill-conditioning
+#GRBsetparam(GUROBI_ENV, "ScaleFlag", "1")
+GRBsetparam(GUROBI_ENV, "NumericFocus", "3")
+GRBsetparam(GUROBI_ENV, "FeasibilityTol", "1e-8")
+#GRBsetparam(GUROBI_ENV, "BarConvTol", "1e-8")
+GRBsetparam(GUROBI_ENV, "OptimalityTol", "1e-8")
+
+#GRBsetparam(GUROBI_ENV, "Method", "2")  # Use barrier method
+#GRBsetparam(GUROBI_ENV, "Quad", "1")    # Better handling of quadratic terms
 
 println("        ")
 
@@ -118,7 +128,7 @@ ts = Dict()
 order_matrix = Dict()
 repr_days = Dict()
 #years = Dict(1 => 2018, 2 => 2021, 3 => 2022) # validation CVAR
-years = Dict(1 => "2018_base", 2 => "2018_high", 3 => "2018_low", 4 => "2021_base", 5 => "2021_high", 6 => "2021_low", 7 => "2022_base", 8 => "2022_high", 9 => "2022_low") # all scenarios at once
+years = Dict(1 => "2018_base", 2 => "2018_high", 3 => "2018_low", 4 => "2021_base", 5 => "2021_high", 6 => "2021_low", 7 => "2022_base", 8 => "2022_high", 9 => "2022_low")
 
 for yr in keys(years)
     ts[yr] = CSV.read(joinpath(home_dir, "Input", "timeseries","timeseries_$(years[yr]).csv"), delim=",", DataFrame)
@@ -151,7 +161,7 @@ else
 end
 
 # Sensitivity analysis
-sens_number = 2 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the sensitivity you'd like to study
+sens_number = 1 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the sensitivity you'd like to study
 # for sens_number in range(1,stop=numb_of_sens+1,step=1) 
 if sens_number >= 2
     println("    ") 
@@ -222,7 +232,7 @@ println("   ")
 results = Dict()
 ADMM = Dict()
 TO = TimerOutput()
-define_results!(merge(data["General"],data["ADMM"],data["cfd"]),results,ADMM,agents, market_design) # initialize structure of results, only those that will be stored in each iteration
+define_results!(data,results,ADMM,agents, market_design) # initialize structure of results, only those that will be stored in each iteration
 ADMM!(results,ADMM,EOM,mdict,agents,scenario_overview_row,data,TO, market_design, years)                 # calculate equilibrium 
 ADMM["walltime"] =  TimerOutputs.tottime(TO)*10^-9/60                              # wall time 
 
@@ -240,6 +250,9 @@ if market_design == "cfd"
     println(string("        "))
     println("Σ Q_cfd_gen = ", sum(results["Q_cfd"][m][end] for m in agents[:Gen]))
     println("Σ Q_cfd_con = ", sum(results["Q_cfd"][m][end] for m in agents[:Cons]))
+    println(string("        "))
+    println("λ_cfd = ", data["cfd"]["lambda_cfd"], " M€/GWh")
+    println("ρ_cfd: ", data["cfd"]["rho_cfd"]," M€/GWh")
 end
 
 ## 6. Postprocessing and save results 
