@@ -1,24 +1,9 @@
-## Topic: Go-E
-# Author: Kenneth Bruninx
-# Last update: November 2022
-
 ## 0. Set-up code
 # HPC or not?
 HPC = "NA" # NA (not applicable) or DelftBlue  
 
 # Home directory
 const home_dir = @__DIR__
-
-#if HPC == "DelftBlue"  # only for running this on DelftBlue
-#    ENV["GRB_LICENSE_FILE"] = "./Hpc/gurobi.lic"
-#    ENV["GUROBI_HOME"] = "./scratch/kbruninx/gurobi950/linux64"
-#    println(string("Number of threads: ", Threads.nthreads()))
-#end
-
-#if HPC == "ThinKing"  # only for running this on VSC
-    # ENV["GRB_LICENSE_FILE"] = " "
-    # ENV["GUROBI_HOME"] = " "
-#end
 
 #import Pkg
 #Pkg.add("YAML")
@@ -83,33 +68,6 @@ include(joinpath(home_dir,"Source","save_results.jl"))
 scenario_overview = CSV.read(joinpath(home_dir,"overview_scenarios.csv"),DataFrame,delim=";")
 sensitivity_overview = CSV.read(joinpath(home_dir,"overview_sensitivity.csv"),DataFrame,delim=";") 
 
-#= Scenario number 
-if HPC == "DelftBlue"  
-   function parse_commandline()
-       s = ArgParseSettings()
-       @add_arg_table! s begin
-           "--start_scen"
-               help = "Enter the number of the first scenario here"
-               arg_type = Int
-               default = 1
-            "--stop_scen"
-               help = "Enter the number of the last scenario here"
-               arg_type = Int
-               default = 1
-       end
-       return parse_args(s)
-   end
-
-   # Simulation number as argument:
-   dict_sim_number =  parse_commandline()
-   start_scen = dict_sim_number["start_scen"]
-   stop_scen = dict_sim_number["stop_scen"]
-else
-    # Range of scenarios to be simulated
-    start_scen = 1
-    stop_scen = 2
-end =#
-
 scen_number = 3 # for debugging purposes, comment the for-loop and replace it by a explicit definition of the scenario you'd like to study
 #for scen_number in range(start_scen, stop=stop_scen, step=1)
 
@@ -121,11 +79,6 @@ println(string("######################                  Scenario ",scen_number,"
 ## 1. Read associated input for this simulation
 scenario_overview_row = scenario_overview[scen_number,:]
 market_design = scenario_overview_row["market_design"]
-
-
-
-
-
 
 # Data common to all scenarios data 
 data = YAML.load_file(joinpath(home_dir,"Input","config.yaml"))
@@ -145,11 +98,6 @@ end
 if isdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_repr_days"))) != 1
     mkdir(joinpath(home_dir, string("Results_", data["General"]["nReprDays"], "_repr_days")))
 end
-
-# Create folder for results
-#if isdir(joinpath(home_dir,string("Results"))) != 1
-#    mkdir(joinpath(home_dir,string("Results")))
-#end
 
 # Create file with results 
 # add column for sensitivity analysis
