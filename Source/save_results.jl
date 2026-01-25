@@ -261,6 +261,7 @@ for jy in 1:nY
             g_out[:, mm] = vec(results["g"][m][end][:,:,jy]) # reshape to 2D vector
             mm = mm+1
         end
+        
         # volledige output matrix
         mat_output = hcat(collect(1:nT*nR),vec(results["λ"]["EOM"][end][:,:,jy]),g_out,-vec(EOM["D"][:,:,jy]), vec(PV_total))
         header_g = string.("G_", vcat(agents[:Gen], agents[:Cons]))

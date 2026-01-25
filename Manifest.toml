@@ -2,7 +2,7 @@
 
 julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "711479db59ac239511c313af1faf945a4b4978e9"
+project_hash = "d80d6bb3b35752619b31948519fb01afc5f3b992"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -97,6 +97,28 @@ git-tree-sha1 = "fde3bf89aead2e723284a8ff9cdf5b551ed700e8"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.18.5+0"
 
+[[deps.CategoricalArrays]]
+deps = ["Compat", "DataAPI", "Future", "Missings", "Printf", "Requires", "Statistics", "Unicode"]
+git-tree-sha1 = "73acb4ed51b1855e1b5ce5c610334363a98d13f1"
+uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
+version = "1.0.2"
+
+    [deps.CategoricalArrays.extensions]
+    CategoricalArraysArrowExt = "Arrow"
+    CategoricalArraysJSONExt = "JSON"
+    CategoricalArraysRecipesBaseExt = "RecipesBase"
+    CategoricalArraysSentinelArraysExt = "SentinelArrays"
+    CategoricalArraysStatsBaseExt = "StatsBase"
+    CategoricalArraysStructTypesExt = "StructTypes"
+
+    [deps.CategoricalArrays.weakdeps]
+    Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
+    JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+    RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
+    SentinelArrays = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
+    StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+    StructTypes = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
+
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra"]
 git-tree-sha1 = "e4c6a16e77171a5f5e25e9646617ab1c276c5607"
@@ -183,6 +205,12 @@ deps = ["Serialization", "Sockets"]
 git-tree-sha1 = "d9d26935a0bcffc87d2613ce14c527c99fc543fd"
 uuid = "f0e56b4a-5159-44fe-b623-3e5288b988bb"
 version = "2.5.0"
+
+[[deps.Conda]]
+deps = ["Downloads", "JSON", "VersionParsing"]
+git-tree-sha1 = "8f06b0cfa4c514c7b9546756dbae91fcfbc92dc9"
+uuid = "8f4d0f93-b110-5947-807f-2305c1781a2d"
+version = "1.10.3"
 
 [[deps.Contour]]
 git-tree-sha1 = "439e35b0b36e2e5881738abc8857bd92ad6ff9a8"
@@ -450,6 +478,11 @@ deps = ["Artifacts", "GettextRuntime_jll", "JLLWrappers", "Libdl", "Libffi_jll",
 git-tree-sha1 = "35fbd0cefb04a516104b8e183ce0df11b70a3f1a"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.84.3+0"
+
+[[deps.Glob]]
+git-tree-sha1 = "97285bbd5230dd766e9ef6749b80fc617126d496"
+uuid = "c27321d9-0574-5035-807b-f59d2c89b15c"
+version = "1.3.1"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1018,6 +1051,18 @@ git-tree-sha1 = "1d36ef11a9aaf1e8b74dacc6a731dd1de8fd493d"
 uuid = "43287f4e-b6f4-7ad1-bb20-aadabca52c3d"
 version = "1.3.0"
 
+[[deps.PyCall]]
+deps = ["Conda", "Dates", "Libdl", "LinearAlgebra", "MacroTools", "Serialization", "VersionParsing"]
+git-tree-sha1 = "9816a3826b0ebf49ab4926e2b18842ad8b5c8f04"
+uuid = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
+version = "1.96.4"
+
+[[deps.PyPlot]]
+deps = ["Colors", "LaTeXStrings", "PyCall", "Sockets", "Test", "VersionParsing"]
+git-tree-sha1 = "d2c2b8627bbada1ba00af2951946fb8ce6012c05"
+uuid = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+version = "2.11.6"
+
 [[deps.Qt6Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Vulkan_Loader_jll", "Xorg_libSM_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_cursor_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "libinput_jll", "xkbcommon_jll"]
 git-tree-sha1 = "eb38d376097f47316fe089fc62cb7c6d85383a52"
@@ -1386,6 +1431,11 @@ version = "1.7.0"
 git-tree-sha1 = "ca0969166a028236229f63514992fc073799bb78"
 uuid = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
 version = "0.2.0"
+
+[[deps.VersionParsing]]
+git-tree-sha1 = "58d6e80b4ee071f5efd07fda82cb9fbe17200868"
+uuid = "81def892-9a0e-5fdd-b105-ffc91e053289"
+version = "1.3.0"
 
 [[deps.Vulkan_Loader_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Wayland_jll", "Xorg_libX11_jll", "Xorg_libXrandr_jll", "xkbcommon_jll"]

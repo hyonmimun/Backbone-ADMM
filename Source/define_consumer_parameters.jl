@@ -15,7 +15,7 @@ function define_consumer_parameters!(mod::Model, data::Dict, ts::Dict, market_de
     [ts[jy][!,Symbol(data["D"])][idx(jy,jd,jh)] for jh=1:nT, jd=1:nR, jy=1:nY]/10^3 # GWh demand profile for segment
     mod.ext[:timeseries][:D] = D_consumers # Store the total demand profile of segment
     mod.ext[:parameters][:D_fixed] = 0.8 .* D_consumers # Fixed demand (80%)
-    mod.ext[:parameters][:D_ELA_max] = 0.2 .* D_consumers # Max elastic demand (20%)
+    mod.ext[:parameters][:D_ELA_max] = 0.4 .* D_consumers # Max elastic demand (40%)
     mod.ext[:parameters][:WTP] = data["WTP"]
 
 

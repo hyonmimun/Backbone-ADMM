@@ -122,6 +122,11 @@ println(string("######################                  Scenario ",scen_number,"
 scenario_overview_row = scenario_overview[scen_number,:]
 market_design = scenario_overview_row["market_design"]
 
+
+
+
+
+
 # Data common to all scenarios data 
 data = YAML.load_file(joinpath(home_dir,"Input","config.yaml"))
 ts = Dict()

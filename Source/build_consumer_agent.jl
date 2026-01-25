@@ -104,7 +104,7 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
         cfd_payout = mod.ext[:expressions][:cfd_payout] = @expression(mod,[jy=JY], sum(W[jd,jy] * share_cfd_con * (λ_EOM[jh,jd,jy] - λ_cfd) * g_cfd_total[jh,jd,jy] for jh in JH, jd in JD)) # 10^6€
         cfd_premium = mod.ext[:expressions][:cfd_premium] = @expression(mod, ζ_cfd * Q_cfd) #10^6€
         cfd_penalty_con = mod.ext[:expressions][:cfd_penalty_con] = @expression(mod, ρ_cfd/2 * (Q_cfd - Q_cfd_bar)^2) # GW
-        cfd_consumer_profit = mod.ext[:expressions][:cfd_consumer_profit] = @expression(mod, [jy=JY], consumer_profit[jy] + cfd_payout[jy])
+        cfd_consumer_profit = mod.ext[:expressions][:cfd_consumer_profit] = @expression(mod, [jy=JY], consumer_profit[jy] + cfd_payout[jy]+ cfd_premium)
 
         # Redefine objective for cfd scenario
         objective_consumer = mod.ext[:expressions][:objective_consumer] = @expression(mod,            
@@ -118,10 +118,10 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
         if γ < 1
             # CVAR constraint
             mod.ext[:constraints][:VAR_threshold] = @constraint(mod, [jy = JY],
-            α - cfd_consumer_profit[jy] <= u[jy]) # only look at downside risk
+            α - (cfd_consumer_profit[jy] + cfd_premium) <= u[jy]) # only look at downside risk
         end
         
-        mod.ext[:constraints][:cfd_demand_constraint] = @constraint(mod, [jy in JY, jd in JD, jh in JH], Q_cfd >= - sum(D_fixed[jh,jd,jy] + D_ELA_max[jh,jd,jy] for jh in JH, jd in JD))
+        #mod.ext[:constraints][:cfd_demand_constraint] = @constraint(mod, [jy in JY, jd in JD, jh in JH], Q_cfd >= - sum(D_fixed[jh,jd,jy] + D_ELA_max[jh,jd,jy] for jh in JH, jd in JD))
         
         #mod.ext[:constraints][:share_cap] = @constraint(mod, 0 <= share_cfd_con <= 1)
         #mod.ext[:constraints][:share_cap_upper] = @constraint(mod, share_cfd_con <= 1)
@@ -137,6 +137,7 @@ function build_consumer_agent!(mod::Model,market_design::AbstractString)
     mod.ext[:constraints][:D_ELA] = @constraint(mod, [jh=JH, jd=JD, jy=JY],
     D_ELA[jh,jd,jy] <= D_ELA_max[jh,jd,jy] #GWh
     )
+    
 if has_battery
 # Battery model
 

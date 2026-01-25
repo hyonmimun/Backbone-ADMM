@@ -14,50 +14,50 @@ ADMM:
  CircularBufferSize: 2 # number of iterations for which data will be retained, should be at least 2 and less than max_iter
 
 cfd:
-  lambda_cfd: 0.07 # 10^6 €/GWh # 10 €/MWh
-  rho_cfd: 0.1 # rho penalty term, cfd (10^6 €/GWh) 10€/MWh
+  lambda_cfd: 0.08 # 10^6 €/GWh # 70 €/MWh
+  rho_cfd: 0.01 # rho penalty term, cfd (10^6 €/GW) 10€/MW
   epsilon_cfd: 0.01 # stopping criterion - tolerance on "accuracy" with which the coupling constraints are satisfied. Applied to dual and primal residuals.
 
 Consumers: # Set of representative consumers
-  TypeA: # BATTERY + PV
+  TypeA: # WEALTHY CONSUMER
    Share: 0.25 # Share of consumers in overall consumer mix
-   PV_cap: 0.000003 #GWp 0.003 kWp
+   PV_cap: 0.000003 #GWp 3 kWp
    D: "CONS_HIGH" # GWh Demand timeseries that needs to be picked up
    PV_AF: "SOLAR_WEST" # GWp AF solar timeseries that needs to be picked up
    WTP: 5 # (10^6 €/GWh) 5000 (€/MWh)
    Battery:
-    cap_smax: 0.000015 # GW (10 kW)
+    cap_smax: 0.000015 # GWh (15 kWh)
     EC: 0.9
     ED: 0.9
     Decay: 0.9999
     winj: 0.000005 # GW 5kW
     wwith: 0.000005 # GW 5kW
 
-  TypeB: # NO BATTERY
+  TypeB: # WEALTHY, WITHOUT FLEX
    Share: 0.25  # Share of consumers in overall consumer mix
-   PV_cap: 0.000003 # GWp 0.005 kWp
-   D: "CONS_HIGH" # Timeseries that needs to be picked up
-   PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
-   WTP: 2.5 # 10^6 €/GW 2500 €/MWh
-
-  TypeC: # NO PV
-   Share: 0.25  # Share of consumers in overall consumer mix
-   #PV_cap: 0 # NO PV!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   #PV_cap: 0.000003 # GWp 3 kWp
    D: "CONS_HIGH" # Timeseries that needs to be picked up
    #PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
+   WTP: 5 # 10^6 €/GW 2500 €/MWh
+
+  TypeC: # POOR WITH FLEX
+   Share: 0.25  # Share of consumers in overall consumer mix
+   PV_cap: 0.000003 # GWp 3 kWp
+   D: "CONS_LOW" # Timeseries that needs to be picked up
+   PV_AF: "SOLAR_WEST" # AF solar timeseries that needs to be picked up
    WTP: 1 # 10^6 €/GWh (1000 €/MWh)
    Battery:
-    cap_smax: 0.000010 # GW (10 kW)
+    cap_smax: 0.000015 # GWh (15 kWh)
     EC: 0.9
     ED: 0.9
     Decay: 0.9999
     winj: 0.000005 # GW 5kW
     wwith: 0.000005 # GW 5kW
 
-  TypeD: # NO PV, NO BATTERY
-   Share: 0.25  
+  TypeD: # POOR WITHOUT FLEX
+   Share: 0.25
    #PV_cap: 0 # NO PV!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   D: "CONS_HIGH"
+   D: "CONS_LOW"
    #PV_AF: "SOLAR_WEST"
    WTP: 1 # 10^6 €/GWh (1000 €/MWh)
 

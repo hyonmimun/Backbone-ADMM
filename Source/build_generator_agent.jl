@@ -110,7 +110,7 @@ function build_generator_agent!(mod::Model, market_design::AbstractString)
         # CVAR constraint
         if γ < 1
         mod.ext[:constraints][:VAR_threshold] = @constraint(mod, [jy = JY],
-        α - cfd_generator_profit[jy] <= u[jy])
+        α - (cfd_generator_profit[jy] + cfd_premium_gen) <= u[jy])
     end
     end
     

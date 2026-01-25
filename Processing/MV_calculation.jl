@@ -23,7 +23,8 @@ market_values_per_year = DataFrame(
     Generation_GWh = Float64[],
     Revenue_M€ = Float64[]
 )
-
+get_year_suffix(year_idx) = year_idx <= 3 ? "2018" :
+                            year_idx <= 6 ? "2021" : "2022"
 for gen in generators
     println("\nProcessing: $gen")
     
@@ -31,26 +32,31 @@ for gen in generators
     total_revenue = 0.0
 
     for year_idx in 1:n_years
-        year_nr = "year_$year_idx"
-        
-        # Load synthetic electricity prices (8760 hours)
-        price_file = "Results_8_repr_days/$(market_design)/electricity_price/synthesized timeseries/synthetic_$(market_design)_electricity_price_$(year_nr).csv"
+        # Logical year index (1–9)
+        year_nr = "year$year_idx"
+        # Physical year tag in the filename
+        year_tag = get_year_suffix(year_idx)
+
+        # ----- PRICES -----
+        # e.g.: synthetic_EOM_electricity_price_year_1_2018.csv
+        price_file = "Results/$(market_design)_risk_1/electricity_price/synthesized timeseries/" *
+                     "synthetic_$(market_design)_electricity_price_$(year_nr)_$(year_tag).csv"
         
         if !isfile(price_file)
-            @warn "  Year $year_idx: Price file not found"
+            @warn "  Year $year_idx: Price file not found: $price_file"
             continue
         end
         
         prices_df = CSV.read(price_file, DataFrame, delim=";")
         prices = prices_df.electricity_price  # M€/GWh
         
-        # Load synthetic generation (8760 hours)
-        year_nr = "year$year_idx"
-
-        gen_file = "Results_8_repr_days/$(market_design)/generation/Gen/$(gen)/synthesized timeseries/synthetic_$(market_design)_generation_$(gen)_$(year_nr).csv"
+        # ----- GENERATION -----
+        # e.g.: synthetic_EOM_generation_Baseload_year_1_2018.csv
+        gen_file = "Results/$(market_design)_risk_1/generation/Gen/$(gen)/synthesized timeseries/" *
+                   "synthetic_generation_$(gen)_$(year_nr)_$(year_tag).csv"
         
         if !isfile(gen_file)
-            @warn "  Year $year_idx: Generation file not found"
+            @warn "  Year $year_idx: Generation file not found: $gen_file"
             continue
         end
         
@@ -61,11 +67,9 @@ for gen in generators
         year_revenue = sum(prices .* generation)
         year_generation = sum(generation)
 
-        # Calculate market value for this year
         if year_generation > 0
             year_MV = year_revenue / year_generation
             
-            # Store per-year results
             push!(market_values_per_year, (
                 Generator = gen,
                 Year = year_idx,
@@ -74,38 +78,37 @@ for gen in generators
                 Revenue_M€ = year_revenue
             ))
             
-            println("  Year $year_idx: Gen = $(round(year_generation, digits=2)) GWh, Rev = $(round(year_revenue, digits=2)) M€, MV = $(round(year_MV, digits=5)) M€/GWh")
+            println("  Year $year_idx ($(year_tag)): Gen = $(round(year_generation, digits=2)) GWh, " *
+                    "Rev = $(round(year_revenue, digits=2)) M€, MV = $(round(year_MV, digits=5)) M€/GWh")
         else
-            println("  Year $year_idx: No generation")
+            println("  Year $year_idx ($(year_tag)): No generation")
         end
         
-        total_revenue += year_revenue # sum to total over 9 years
-        total_generation += year_generation # sum to total over 9 years
+        total_revenue += year_revenue
+        total_generation += year_generation
     end
     
-    # Calculate market value over all years
     if total_generation > 0
-        MV = total_revenue / total_generation  # M€/GWh over all 9 years
-        
+        MV = total_revenue / total_generation
         push!(market_values, (
             Generator = gen,
             MV_M€_per_GWh = MV,
             Total_Generation_GWh = total_generation,
             Total_Revenue_M€ = total_revenue
         ))
-        
         println("  ✓ Market Value (over all 9 years): $(round(MV, digits=5)) M€/GWh")
     else
         println("  ⚠ No generation recorded")
     end
 end
 
+
 # Save results
-output_file_total = "Results_8_repr_days/$(market_design)/market_values_total.csv"
+output_file_total = "Results/$(market_design)_risk_1/market_values_total.csv"
 CSV.write(output_file_total, market_values, delim=";")
 println("\n✓ Total market values saved to: $output_file_total")
 
-output_file_per_year = "Results_8_repr_days/$(market_design)/market_values_per_year.csv"
+output_file_per_year = "Results/$(market_design)_risk_1/market_values_per_year.csv"
 CSV.write(output_file_per_year, market_values_per_year, delim=";")
 println("✓ Per-year market values saved to: $output_file_per_year")
 

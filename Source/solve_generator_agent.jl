@@ -110,7 +110,7 @@ function solve_generator_agent!(mod::Model, market_design::AbstractString, m::St
                 delete(mod, mod.ext[:constraints][:VAR_threshold][jy])
             end
             mod.ext[:constraints][:VAR_threshold] = @constraint(mod, [jy = JY],
-            α - cfd_generator_profit[jy] <= u[jy] )
+            α - (cfd_generator_profit[jy] + cfd_premium_gen) <= u[jy] )
         end
     end
 

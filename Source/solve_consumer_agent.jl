@@ -110,10 +110,10 @@ function solve_consumer_agent!(mod::Model,market_design::AbstractString, m::Stri
                 delete(mod, mod.ext[:constraints][:VAR_threshold][jy])
             end
             mod.ext[:constraints][:VAR_threshold] = @constraint(mod, [jy = JY],
-            α - cfd_consumer_profit[jy] <= u[jy] )
+            α - (cfd_consumer_profit[jy] + cfd_premium) <= u[jy] )
         end
     end
-    
+
     mod.ext[:objective] = @objective(mod, Min, objective_consumer)
 
     if haskey(mod.ext[:constraints], :energy_balance) # Check whether constraint :energybalance exists in the model
